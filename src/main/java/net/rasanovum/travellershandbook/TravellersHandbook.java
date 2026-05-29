@@ -19,6 +19,16 @@ public class TravellersHandbook implements ModInitializer {
 		ResourceManagerHelper.get(PackType.SERVER_DATA)
 				.registerReloadListener(new JournalDataLoader());
 
+		// advancement listening
+		net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			JournalNetworkManager.syncToPlayer(handler.player);
+		});
+
+		// advancement given to any player
+		net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.COPY_FROM.register((oldPlayer, newPlayer, alive) -> {
+			JournalNetworkManager.syncToPlayer(newPlayer);
+		});
+
 		LOGGER.info("Hello Fabric world!");
 	}
 }

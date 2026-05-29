@@ -7,6 +7,8 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.network.chat.Component;
 import net.rasanovum.travellershandbook.client.screen.JournalScreen;
 import net.rasanovum.travellershandbook.data.JournalEntry;
 import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
@@ -32,14 +34,36 @@ public class TravellersHandbookClient implements ClientModInitializer {
 			for (int i = 0; i < size; i++) {
 				buf.readResourceLocation();
 				String cat = buf.readUtf();
+				boolean isUnlocked = buf.readBoolean();
 				String title = buf.readUtf();
 				String desc = buf.readUtf();
-				tempEntries.add(new JournalEntry(cat, title, desc));
+				String adv = buf.readUtf();
+
+				if (!isUnlocked) {
+					title = "???";
+					desc = "You have not discovered this yet..."; //translatable later
+				}
+
+				tempEntries.add(new JournalEntry(cat, title, desc, adv));
 			}
 
 			client.execute(() -> {
 				CLIENT_ENTRIES_CACHE.clear();
 				CLIENT_ENTRIES_CACHE.addAll(tempEntries);
+			});
+		});
+
+		ClientPlayNetworking.registerGlobalReceiver(JournalNetworkManager.UNLOCK_NOTIFY_PACKET_ID, (client, handler, buf, responseSender) -> {
+			client.execute(() -> {
+				if (client.player != null) {
+					client.player.playSound(net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, 1.0F, 0.8F);
+
+					client.getToasts().addToast(new SystemToast(
+							SystemToast.SystemToastIds.PERIODIC_NOTIFICATION,
+							Component.literal("§6Journal Updated"),
+							Component.literal("A new observation has been noted...")
+					));
+				}
 			});
 		});
 
