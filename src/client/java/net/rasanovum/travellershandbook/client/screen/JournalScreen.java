@@ -136,14 +136,23 @@ public class JournalScreen extends Screen {
 
                 UiRow row = visibleRows.get(rowIndex);
                 int currentY = leftPageY + (i * 10);
-                boolean isHighlighted = (rowIndex == selectedRowIndex);
+
+                boolean isHighlighted = false;
+                if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size()) {
+                    UiRow selectedRow = visibleRows.get(selectedRowIndex);
+                    if (row.isHeader && selectedRow.isHeader) {
+                        isHighlighted = row.categoryName.equals(selectedRow.categoryName);
+                    } else if (!row.isHeader && !selectedRow.isHeader) {
+                        isHighlighted = (row.entry == selectedRow.entry);
+                    }
+                }
 
                 int color = isHighlighted ? 0xFF007700 : (row.isHeader ? 0xFF444444 : 0xFF666666);
 
                 if (row.isHeader) {
                     guiGraphics.drawString(this.font, row.renderedTextLine, leftPageX, currentY, color, false);
                 } else {
-                    int indentX = row.isTitleExtension ? leftPageX + 14 : leftPageX + 6;
+                    int indentX = leftPageX + 6;
 
                     if (isHighlighted && !row.isTitleExtension) {
                         guiGraphics.drawString(this.font, "> ", leftPageX, currentY, 0xFF007700, false);
@@ -214,7 +223,7 @@ public class JournalScreen extends Screen {
                 guiGraphics.drawString(this.font, "§l" + activeRow.categoryName, rightPageX, rightPageY, 0xFF111111, false);
                 rightPageY += 15;
                 // need to change to translatable key later
-                String helperMsg = activeRow.isExpanded ? "Click the index row name to collapse this category entry group layout listing." : "Click the index row name to expand this category group listing notes.";
+                String helperMsg = activeRow.isExpanded ? "Click the index row name to collapse this category." : "Click the index row name to expand this category.";
                 List<FormattedCharSequence> lines = this.font.split(Component.literal(helperMsg), maxPageWidth);
                 for (int i = 0; i < lines.size(); i++) {
                     guiGraphics.drawString(this.font, lines.get(i), rightPageX, rightPageY + (i * 9), 0xFF777777, false);
