@@ -10,8 +10,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.rasanovum.travellershandbook.data.JournalDataLoader;
 
 public class JournalNetworkManager {
-    public static final ResourceLocation SYNC_PACKET_ID = new ResourceLocation("traveller_handbook", "sync_entries");
-    public static final ResourceLocation UNLOCK_NOTIFY_PACKET_ID = new ResourceLocation("traveller_handbook", "unlock_notify");
+    public static final ResourceLocation SYNC_PACKET_ID = new ResourceLocation("travellers-handbook", "sync_entries");
+    public static final ResourceLocation UNLOCK_NOTIFY_PACKET_ID = new ResourceLocation("travellers-handbook", "unlock_notify");
 
     public static void registerServerPackets() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {

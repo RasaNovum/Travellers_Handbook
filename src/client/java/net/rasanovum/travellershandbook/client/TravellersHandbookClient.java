@@ -68,10 +68,10 @@ public class TravellersHandbookClient implements ClientModInitializer {
 		});
 
 		openJournalKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-				"key.traveller_handbook.open_journal",
+				"key.travellers-handbook.open_journal",
 				InputConstants.Type.KEYSYM,
 				GLFW.GLFW_KEY_N,
-				"key.categories.traveller_handbook"
+				"key.categories.travellers-handbook"
 		));
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {

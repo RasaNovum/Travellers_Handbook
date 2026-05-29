@@ -177,7 +177,7 @@ public class JournalScreen extends Screen {
         // render right page
         int rightPageX = this.leftPos + 146;
         int rightPageY = this.topPos + 18;
-        int maxPageWidth = 100;
+        int maxPageWidth = 105;
 
         if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size() && !visibleRows.isEmpty()) {
             UiRow activeRow = visibleRows.get(selectedRowIndex);
