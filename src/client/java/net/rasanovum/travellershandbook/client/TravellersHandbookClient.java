@@ -5,6 +5,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
@@ -41,7 +42,7 @@ public class TravellersHandbookClient implements ClientModInitializer {
 
 				if (!isUnlocked) {
 					title = "???";
-					desc = "You have not discovered this yet..."; //translatable later
+					desc = Component.translatable("gui.travellershandbook.locked_description").getString();
 				}
 
 				tempEntries.add(new JournalEntry(cat, title, desc, adv));
@@ -60,8 +61,8 @@ public class TravellersHandbookClient implements ClientModInitializer {
 
 					client.getToasts().addToast(new SystemToast(
 							SystemToast.SystemToastIds.PERIODIC_NOTIFICATION,
-							Component.literal("§6Journal Updated"),
-							Component.literal("A new observation has been noted...")
+							Component.translatable("gui.travellershandbook.toast.title").withStyle(ChatFormatting.GOLD),
+							Component.translatable("gui.travellershandbook.toast.message")
 					));
 				}
 			});

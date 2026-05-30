@@ -2,12 +2,12 @@
   "key.categories.traveller_handbook": "Traveller's Handbook",
   "key.traveller_handbook.open_journal": "Open Journal",
 
-  "journal.title": "Traveller's Notes",
-  "journal.page": "Page %d",
-
-  "journal.entry.1.title": "1. The Journey Begins",
-  "journal.entry.1.desc": "Woke up in a strange world. The air feels crisp, and trees stretch out into the horizon. Must find shelter before nightfall.",
-
-  "journal.entry.2.title": "2. Deep Dark Caves",
-  "journal.entry.2.desc": "Ventured underground today. Found veins of iron and heard the distant echo of running water. Need more torches."
+  "gui.travellershandbook.title": "Traveller's Handbook",
+  "gui.travellershandbook.index": "Journal Contents",
+  "gui.travellershandbook.no_entries": "No entries found",
+  "gui.travellershandbook.locked_description": "You have not discovered this yet.",
+  "gui.travellershandbook.help.expanded": "Click the category to collapse it.",
+  "gui.travellershandbook.help.collapsed": "Click the category to expand it.",
+  "gui.travellershandbook.toast.title": "Journal updated",
+  "gui.travellershandbook.toast.message": "A new entry has been made..."
 }

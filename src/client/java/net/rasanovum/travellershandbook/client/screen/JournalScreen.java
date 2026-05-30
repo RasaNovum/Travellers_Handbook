@@ -35,7 +35,7 @@ public class JournalScreen extends Screen {
     private final int maxVisibleLinesOnPage = 14;
 
     public JournalScreen() {
-        super(Component.literal("Traveller's Handbook"));  // need to change to translatable key later
+        super(Component.translatable("gui.travellershandbook.title"));
     }
 
     @Override
@@ -116,14 +116,16 @@ public class JournalScreen extends Screen {
             }
         }
 
-        int leftPageX = this.leftPos + 24;
+        int leftPageX = this.leftPos + 20;
         int leftPageY = this.topPos + 18;
+        Component indexHeader = Component.translatable("gui.travellershandbook.index").withStyle(net.minecraft.ChatFormatting.UNDERLINE);
+        Component noEntries = Component.translatable("gui.travellershandbook.no_entries");
 
-        guiGraphics.drawString(this.font, "§nJournal Index", leftPageX, leftPageY, 0xFF222222, false); // need to change to translatable key later
+        guiGraphics.drawString(this.font, indexHeader, leftPageX, leftPageY, 0xFF222222, false);
         leftPageY += 14;
 
         if (visibleRows.isEmpty()) {
-            guiGraphics.drawString(this.font, "No entries found.", leftPageX, leftPageY, 0xFF555555, false);  // need to change to translatable key later
+            guiGraphics.drawString(this.font, noEntries, leftPageX, leftPageY, 0xFF555555, false);
         } else {
             int maxLeftScrollIndex = Math.max(0, visibleRows.size() - maxVisibleRowsOnLeftPage);
             if (this.leftPageScrollAmount > maxLeftScrollIndex) {
@@ -220,11 +222,14 @@ public class JournalScreen extends Screen {
                     guiGraphics.fill(barX, barTrackY + thumbYOffset, barX + 2, barTrackY + thumbYOffset + thumbHeight, 0x88444444);
                 }
             } else {
-                guiGraphics.drawString(this.font, "§l" + activeRow.categoryName, rightPageX, rightPageY, 0xFF111111, false);
+                Component categoryHeader = Component.literal(activeRow.categoryName).withStyle(net.minecraft.ChatFormatting.BOLD);
+                guiGraphics.drawString(this.font, categoryHeader, rightPageX, rightPageY, 0xFF111111, false);
                 rightPageY += 15;
-                // need to change to translatable key later
-                String helperMsg = activeRow.isExpanded ? "Click the index row name to collapse this category." : "Click the index row name to expand this category.";
-                List<FormattedCharSequence> lines = this.font.split(Component.literal(helperMsg), maxPageWidth);
+
+                String helpKey = activeRow.isExpanded ? "gui.travellershandbook.help.expanded" : "gui.travellershandbook.help.collapsed";
+                Component helperMsg = Component.translatable(helpKey);
+
+                List<FormattedCharSequence> lines = this.font.split(helperMsg, maxPageWidth);
                 for (int i = 0; i < lines.size(); i++) {
                     guiGraphics.drawString(this.font, lines.get(i), rightPageX, rightPageY + (i * 9), 0xFF777777, false);
                 }
