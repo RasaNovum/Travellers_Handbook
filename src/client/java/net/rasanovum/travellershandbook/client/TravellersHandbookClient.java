@@ -5,10 +5,8 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.network.chat.Component;
 import net.rasanovum.travellershandbook.client.screen.JournalScreen;
 import net.rasanovum.travellershandbook.data.JournalEntry;
@@ -49,22 +47,26 @@ public class TravellersHandbookClient implements ClientModInitializer {
 			}
 
 			client.execute(() -> {
+				if (client.player != null && !CLIENT_ENTRIES_CACHE.isEmpty()) {
+
+					for (JournalEntry newEntry : tempEntries) {
+						if (!newEntry.getTitle().equals("???")) {
+
+							boolean wasPreviouslyLocked = CLIENT_ENTRIES_CACHE.stream()
+									.anyMatch(cachedEntry -> cachedEntry.getAdvancementRequirement().equals(newEntry.getAdvancementRequirement())
+											&& cachedEntry.getTitle().equals("???"));
+							if (wasPreviouslyLocked) {
+								net.rasanovum.travellershandbook.client.JournalNotificationManager.notifyNewEntry(
+										newEntry.getTitle(),
+										"gui.travellershandbook.toast.message"
+								);
+							}
+						}
+					}
+				}
+
 				CLIENT_ENTRIES_CACHE.clear();
 				CLIENT_ENTRIES_CACHE.addAll(tempEntries);
-			});
-		});
-
-		ClientPlayNetworking.registerGlobalReceiver(JournalNetworkManager.UNLOCK_NOTIFY_PACKET_ID, (client, handler, buf, responseSender) -> {
-			client.execute(() -> {
-				if (client.player != null) {
-					client.player.playSound(net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, 1.0F, 0.8F);
-
-					client.getToasts().addToast(new SystemToast(
-							SystemToast.SystemToastIds.PERIODIC_NOTIFICATION,
-							Component.translatable("gui.travellershandbook.toast.title").withStyle(ChatFormatting.GOLD),
-							Component.translatable("gui.travellershandbook.toast.message")
-					));
-				}
 			});
 		});
 
