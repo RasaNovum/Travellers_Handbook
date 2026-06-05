@@ -1,9 +1,13 @@
-# Traveller&#39;s Handbook
+# Traveller's Handbook
 
-## Setup
+A minecraft mod by Rasa Novum
 
-For setup instructions, please see the [Fabric Documentation page](https://docs.fabricmc.net/develop/getting-started/creating-a-project#setting-up) related to the IDE that you are using.
+Currently does the following:
 
-## License
+### Journal GUI
 
-This template is available under the CC0 license. Feel free to learn from it and incorporate it in your own projects.
+- Journal GUI brought up by keypress
+- Journal features entries sorted by category on the left page, with their respective entries on the right.
+- Journal entries are fully data driven (see template datapack) and can be locked behind advancements.
+- If an advancement is locked, the title and description is obfuscated until the player triggers the correct advancement.
+- Upon successful trigger, a custom toast notification pops up that a new journal entry has been added.

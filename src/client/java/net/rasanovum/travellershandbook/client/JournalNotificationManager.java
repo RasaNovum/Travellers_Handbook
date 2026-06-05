@@ -24,7 +24,6 @@ public class JournalNotificationManager {
             ));
         }
 
-        Minecraft mc = Minecraft.getInstance();
-        mc.getToasts().addToast(new JournalToast(Component.translatable(titleKey).withStyle(ChatFormatting.GOLD),Component.translatable(descKey), mc.font));
+        client.getToasts().addToast(new JournalToast(Component.translatable(titleKey).withStyle(ChatFormatting.GOLD),Component.translatable(descKey), client.font));
     }
 }
