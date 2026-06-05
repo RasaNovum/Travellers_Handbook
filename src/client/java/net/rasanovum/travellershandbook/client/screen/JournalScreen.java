@@ -418,15 +418,23 @@ public class JournalScreen extends Screen {
     private String scrambleToRunes(String text, long baseSeed, long currentTick) {
         StringBuilder scrambled = new StringBuilder();
 
+        long animatedTick = currentTick / 2L;
+
+        char[] fixedWidthRunes = {
+                'a', 'b', 'c', 'd', 'e', 'g', 'h', 'j', 'k', 'n',
+                'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'x', 'y', 'z'
+        };
+
         for (int pos = 0; pos < text.length(); pos++) {
             char c = text.charAt(pos);
             if (Character.isWhitespace(c) || c == '.' || c == ',' || c == '!' || c == '?') {
                 scrambled.append(' ');
             } else {
-                long uniqueCharSeed = baseSeed + (pos * 19L) + currentTick;
+                long uniqueCharSeed = baseSeed + (pos * 19L) + animatedTick;
                 java.util.Random rand = new java.util.Random(uniqueCharSeed);
 
-                scrambled.append((char) ('a' + rand.nextInt(26)));
+                char uniformRune = fixedWidthRunes[rand.nextInt(fixedWidthRunes.length)];
+                scrambled.append(uniformRune);
             }
         }
 

@@ -2,7 +2,6 @@ package net.rasanovum.travellershandbook.client;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
@@ -25,9 +24,7 @@ public class JournalNotificationManager {
             ));
         }
 
-        client.getToasts().addToast(new JournalToast(
-                Component.translatable(titleKey).withStyle(ChatFormatting.GOLD),
-                Component.translatable(descKey)
-        ));
+        Minecraft mc = Minecraft.getInstance();
+        mc.getToasts().addToast(new JournalToast(Component.translatable(titleKey).withStyle(ChatFormatting.GOLD),Component.translatable(descKey), mc.font));
     }
 }
