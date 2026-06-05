@@ -81,6 +81,11 @@ public class TravellersHandbookClient implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player != null) {
 				while (openJournalKey.consumeClick()) {
+					client.player.playSound(
+							net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN,
+							1.0F,
+							1.0F
+					);
 					Minecraft.getInstance().setScreen(new JournalScreen());
 				}
 			}
