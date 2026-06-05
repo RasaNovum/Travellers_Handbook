@@ -2,6 +2,7 @@ package net.rasanovum.travellershandbook.client.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -19,6 +20,8 @@ public class JournalScreen extends Screen {
 
     private final int imageWidth = 271;
     private final int imageHeight = 180;
+    private static final int maxTitleWidth = 90;
+    private static final int maxPageWidth = 94;
     private int leftPos;
     private int topPos;
 
@@ -54,7 +57,6 @@ public class JournalScreen extends Screen {
         for (JournalEntry entry : TravellersHandbookClient.CLIENT_ENTRIES_CACHE) {
             groupedEntries.computeIfAbsent(entry.getCategory(), k -> new ArrayList<>()).add(entry);
         }
-        // Expand the primary category on load if data map holds entries
         if (!groupedEntries.isEmpty() && expandedCategories.isEmpty()) {
             expandedCategories.add(groupedEntries.keySet().iterator().next());
         }
@@ -62,7 +64,6 @@ public class JournalScreen extends Screen {
 
     private void rebuildVisibleRows() {
         visibleRows.clear();
-        int maxTitleWidth = 90;
 
         for (Map.Entry<String, List<JournalEntry>> group : groupedEntries.entrySet()) {
             String categoryName = group.getKey();
@@ -75,17 +76,36 @@ public class JournalScreen extends Screen {
 
             if (isExpanded) {
                 for (JournalEntry entry : group.getValue()) {
-                    Component fullTitleText = Component.literal(entry.getTitle());
-                    List<FormattedCharSequence> splitTitleLines = this.font.split(fullTitleText, maxTitleWidth);
 
-                    if (splitTitleLines.isEmpty()) continue;
+                    Component desc = Component.translatable("gui.travellershandbook.locked_description");
+                    boolean isLocked = entry.getDescription().equals(desc.getString());
 
-                    visibleRows.add(new UiRow(categoryName, entry, false, splitTitleLines.get(0)));
+                    if (isLocked) {
+                        String displayTitleString = "altfont_" + entry.getTitle();
+                        String originalTitle = entry.getTitle();
 
-                    for (int i = 1; i < splitTitleLines.size(); i++) {
-                        UiRow extensionRow = new UiRow(categoryName, entry, false, splitTitleLines.get(i));
-                        extensionRow.isTitleExtension = true;
-                        visibleRows.add(extensionRow);
+                        if (originalTitle.length() > 16) {
+                            originalTitle = originalTitle.substring(0, 13) + "...";
+                        }
+
+                        Component singleLineComponent = Component.literal(originalTitle).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
+                        JournalEntry displayEntry = new JournalEntry(entry.getCategory(), displayTitleString, entry.getDescription(), entry.getAdvancementRequirement());
+
+                        visibleRows.add(new UiRow(categoryName, displayEntry, false, singleLineComponent.getVisualOrderText()));
+                    } else {
+                        String displayTitleString = entry.getTitle();
+                        Component fullTitleText = Component.literal(displayTitleString);
+                        List<FormattedCharSequence> splitTitleLines = this.font.split(fullTitleText, maxTitleWidth);
+                        if (splitTitleLines.isEmpty()) continue;
+
+                        JournalEntry displayEntry = new JournalEntry(entry.getCategory(), displayTitleString, entry.getDescription(), entry.getAdvancementRequirement());
+                        visibleRows.add(new UiRow(categoryName, displayEntry, false, splitTitleLines.get(0)));
+
+                        for (int i = 1; i < splitTitleLines.size(); i++) {
+                            UiRow extensionRow = new UiRow(categoryName, displayEntry, false, splitTitleLines.get(i));
+                            extensionRow.isTitleExtension = true;
+                            visibleRows.add(extensionRow);
+                        }
                     }
                 }
             }
@@ -94,6 +114,7 @@ public class JournalScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.rebuildVisibleRows();
         this.renderBackground(guiGraphics);
         this.hoveredRowIndex = -1;
 
@@ -147,7 +168,7 @@ public class JournalScreen extends Screen {
                     if (row.isHeader && hoveredRow.isHeader) {
                         isHighlighted = row.categoryName.equals(hoveredRow.categoryName);
                     } else if (!row.isHeader && !hoveredRow.isHeader) {
-                        isHighlighted = (row.entry == hoveredRow.entry);
+                        isHighlighted = row.entry.getAdvancementRequirement().equals(hoveredRow.entry.getAdvancementRequirement());
                     }
                 }
 
@@ -155,7 +176,7 @@ public class JournalScreen extends Screen {
                 if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size()) {
                     UiRow selectedRow = visibleRows.get(selectedRowIndex);
                     if (!row.isHeader && !selectedRow.isHeader) {
-                        isSelected = (row.entry == selectedRow.entry);
+                        isSelected = row.entry.getAdvancementRequirement().equals(selectedRow.entry.getAdvancementRequirement());
                     }
                 }
 
@@ -170,7 +191,21 @@ public class JournalScreen extends Screen {
                         guiGraphics.drawString(this.font, "> ", leftPageX + 4, currentY, 0xFF007700, false);
                     }
 
-                    guiGraphics.drawString(this.font, row.renderedTextLine, indentX, currentY, color, false);
+                    Component description = Component.translatable("gui.travellershandbook.locked_description");
+                    if (row.entry.getDescription().equals(description.getString())) {
+
+                        TextExtractor extractor = new TextExtractor();
+                        row.renderedTextLine.accept(extractor);
+                        String currentLineText = extractor.getText();
+
+                        String scrambledRuneLine = scrambleToRunes(currentLineText, rowIndex * 73L, this.minecraft.player.tickCount);
+
+                        Component finalRuneLine = Component.literal(scrambledRuneLine).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
+                        guiGraphics.drawString(this.font, finalRuneLine.getVisualOrderText(), indentX, currentY, 0xFF887766, false);
+
+                    } else {
+                        guiGraphics.drawString(this.font, row.renderedTextLine, indentX, currentY, color, false);
+                    }
                 }
             }
 
@@ -189,7 +224,6 @@ public class JournalScreen extends Screen {
         // render right page
         int rightPageX = this.leftPos + 146;
         int rightPageY = this.topPos + 18;
-        int maxPageWidth = 105;
 
         if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size() && !visibleRows.isEmpty()) {
             UiRow activeRow = visibleRows.get(selectedRowIndex);
@@ -197,13 +231,33 @@ public class JournalScreen extends Screen {
             if (!activeRow.isHeader) {
                 JournalEntry activeEntry = activeRow.entry;
 
-                guiGraphics.drawString(this.font, "§l" + activeEntry.getTitle(), rightPageX, rightPageY, 0xFF111111, false);
+                String cleanRightTitle = activeEntry.getTitle();
+                if (cleanRightTitle.startsWith("altfont_")) {
+                    cleanRightTitle = cleanRightTitle.replace("altfont_", "");
+                    if (cleanRightTitle.length() > 13) {
+                        cleanRightTitle = cleanRightTitle.substring(0, 11) + "...";
+                    }
+
+                    String titleScramble = scrambleToRunes(cleanRightTitle, 500L, this.minecraft.player.tickCount);
+
+                    Component runeTitle = Component.literal(titleScramble).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
+                    guiGraphics.drawString(this.font, runeTitle.getVisualOrderText(), rightPageX, rightPageY, 0xFF887766, false);
+                } else {
+                    guiGraphics.drawString(this.font, "§l" + cleanRightTitle, rightPageX, rightPageY, 0xFF111111, false);
+                }
                 rightPageY += 11;
 
                 guiGraphics.drawString(this.font, "§o" + activeEntry.getCategory(), rightPageX, rightPageY, 0xFF666666, false);
                 rightPageY += 13;
 
                 Component bodyText = Component.literal(activeEntry.getDescription());
+                Component lockedDescCheck = Component.translatable("gui.travellershandbook.locked_description");
+                boolean isRightPageLocked = activeEntry.getDescription().equals(lockedDescCheck.getString());
+                if (isRightPageLocked) {
+                    bodyText = Component.translatable("gui.travellershandbook.locked_description") // A placeholder lang entry or fallback text
+                            .withStyle(style -> style.withFont(Minecraft.ALT_FONT));
+                }
+
                 List<FormattedCharSequence> lines = this.font.split(bodyText, maxPageWidth);
                 this.totalWrappedLines = lines.size();
 
@@ -218,7 +272,18 @@ public class JournalScreen extends Screen {
                     if (lineIndex >= this.totalWrappedLines) break;
 
                     int currentLineY = rightPageY + (i * 9);
-                    guiGraphics.drawString(this.font, lines.get(lineIndex), rightPageX, currentLineY, 0xFF333333, false);
+                    if (isRightPageLocked) {
+                        TextExtractor extractor = new TextExtractor();
+                        lines.get(lineIndex).accept(extractor);
+                        String rawLineText = extractor.getText();
+
+                        String randomizedLine = scrambleToRunes(rawLineText, lineIndex * 117L, this.minecraft.player.tickCount);
+
+                        Component runeBodyLine = Component.literal(randomizedLine).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
+                        guiGraphics.drawString(this.font, runeBodyLine.getVisualOrderText(), rightPageX, currentLineY, 0xFF554433, false);
+                    } else {
+                        guiGraphics.drawString(this.font, lines.get(lineIndex), rightPageX, currentLineY, 0xFF333333, false);
+                    }
                 }
 
                 // right page scrollbar
@@ -347,6 +412,38 @@ public class JournalScreen extends Screen {
             this.isHeader = (entry == null);
             this.isExpanded = isExpanded;
             this.renderedTextLine = renderedTextLine;
+        }
+    }
+
+    private String scrambleToRunes(String text, long baseSeed, long currentTick) {
+        StringBuilder scrambled = new StringBuilder();
+
+        for (int pos = 0; pos < text.length(); pos++) {
+            char c = text.charAt(pos);
+            if (Character.isWhitespace(c) || c == '.' || c == ',' || c == '!' || c == '?') {
+                scrambled.append(' ');
+            } else {
+                long uniqueCharSeed = baseSeed + (pos * 19L) + currentTick;
+                java.util.Random rand = new java.util.Random(uniqueCharSeed);
+
+                scrambled.append((char) ('a' + rand.nextInt(26)));
+            }
+        }
+
+        return scrambled.toString();
+    }
+
+    private static class TextExtractor implements net.minecraft.util.FormattedCharSink {
+        private final StringBuilder buffer = new StringBuilder();
+
+        @Override
+        public boolean accept(int index, net.minecraft.network.chat.Style style, int codePoint) {
+            buffer.appendCodePoint(codePoint);
+            return true;
+        }
+
+        public String getText() {
+            return buffer.toString();
         }
     }
 }

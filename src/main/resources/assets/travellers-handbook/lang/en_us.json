@@ -5,9 +5,9 @@
   "gui.travellershandbook.title": "Traveller's Handbook",
   "gui.travellershandbook.index": "Journal Contents",
   "gui.travellershandbook.no_entries": "No entries found",
-  "gui.travellershandbook.locked_description": "You have not discovered this yet.",
+  "gui.travellershandbook.locked_description": "You have not discovered this entry yet. Unlock new entries by exploring the world around you!",
   "gui.travellershandbook.help.expanded": "Click the category to collapse it.",
   "gui.travellershandbook.help.collapsed": "Click the category to expand it.",
   "gui.travellershandbook.toast.title": "Journal updated",
-  "gui.travellershandbook.toast.message": "A new entry has been made..."
+  "gui.travellershandbook.toast.message": "A new entry has been made."
 }
