@@ -26,6 +26,7 @@ public class JournalScreen extends Screen {
     private final Set<String> expandedCategories = new HashSet<>();
     private final List<UiRow> visibleRows = new ArrayList<>();
     private int selectedRowIndex = -1;
+    private int hoveredRowIndex = -1;
 
     private double leftPageScrollAmount = 0;
     private final int maxVisibleRowsOnLeftPage = 13;
@@ -67,7 +68,7 @@ public class JournalScreen extends Screen {
             String categoryName = group.getKey();
             boolean isExpanded = expandedCategories.contains(categoryName);
 
-            Component headerComponent = Component.literal("§l" + (isExpanded ? "[-] " : "[+] ") + categoryName);
+            Component headerComponent = Component.literal("§l" + categoryName);
             FormattedCharSequence headerVisualText = headerComponent.getVisualOrderText();
 
             visibleRows.add(new UiRow(categoryName, null, isExpanded, headerVisualText));
@@ -94,6 +95,7 @@ public class JournalScreen extends Screen {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics);
+        this.hoveredRowIndex = -1;
 
         RenderSystem.setShaderTexture(0, CUSTOM_BOOK_TEXTURE);
         guiGraphics.blit(CUSTOM_BOOK_TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, this.imageWidth, this.imageHeight);
@@ -110,7 +112,7 @@ public class JournalScreen extends Screen {
                 if (mouseY >= rTop && mouseY <= rTop + 9) {
                     int hoveredIndex = startRowOffset + i;
                     if (hoveredIndex < visibleRows.size()) {
-                        this.selectedRowIndex = hoveredIndex;
+                        this.hoveredRowIndex = hoveredIndex;
                     }
                 }
             }
@@ -140,12 +142,20 @@ public class JournalScreen extends Screen {
                 int currentY = leftPageY + (i * 10);
 
                 boolean isHighlighted = false;
+                if (hoveredRowIndex >= 0 && hoveredRowIndex < visibleRows.size()) {
+                    UiRow hoveredRow = visibleRows.get(hoveredRowIndex);
+                    if (row.isHeader && hoveredRow.isHeader) {
+                        isHighlighted = row.categoryName.equals(hoveredRow.categoryName);
+                    } else if (!row.isHeader && !hoveredRow.isHeader) {
+                        isHighlighted = (row.entry == hoveredRow.entry);
+                    }
+                }
+
+                boolean isSelected = false;
                 if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size()) {
                     UiRow selectedRow = visibleRows.get(selectedRowIndex);
-                    if (row.isHeader && selectedRow.isHeader) {
-                        isHighlighted = row.categoryName.equals(selectedRow.categoryName);
-                    } else if (!row.isHeader && !selectedRow.isHeader) {
-                        isHighlighted = (row.entry == selectedRow.entry);
+                    if (!row.isHeader && !selectedRow.isHeader) {
+                        isSelected = (row.entry == selectedRow.entry);
                     }
                 }
 
@@ -154,10 +164,10 @@ public class JournalScreen extends Screen {
                 if (row.isHeader) {
                     guiGraphics.drawString(this.font, row.renderedTextLine, leftPageX, currentY, color, false);
                 } else {
-                    int indentX = leftPageX + 6;
+                    int indentX = leftPageX + 12;
 
-                    if (isHighlighted && !row.isTitleExtension) {
-                        guiGraphics.drawString(this.font, "> ", leftPageX, currentY, 0xFF007700, false);
+                    if (isSelected && !row.isTitleExtension) {
+                        guiGraphics.drawString(this.font, "> ", leftPageX + 4, currentY, 0xFF007700, false);
                     }
 
                     guiGraphics.drawString(this.font, row.renderedTextLine, indentX, currentY, color, false);
@@ -256,7 +266,6 @@ public class JournalScreen extends Screen {
 
                         if (actualDataIndex < visibleRows.size()) {
                             UiRow clickedRow = visibleRows.get(actualDataIndex);
-                            this.selectedRowIndex = actualDataIndex;
                             this.rightPageScrollAmount = 0;
 
                             if (clickedRow.isHeader) {
@@ -266,6 +275,12 @@ public class JournalScreen extends Screen {
                                     expandedCategories.add(clickedRow.categoryName);
                                 }
                                 rebuildVisibleRows();
+                            } else {
+                                if (this.selectedRowIndex == actualDataIndex) {
+                                    this.selectedRowIndex = -1;
+                                } else {
+                                    this.selectedRowIndex = actualDataIndex;
+                                }
                             }
 
                             this.minecraft.getSoundManager().play(
