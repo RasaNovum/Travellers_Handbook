@@ -25,14 +25,14 @@ public class JournalNetworkManager {
 
         JournalDataLoader.SERVER_ENTRIES.forEach((id, entry) -> {
             buf.writeResourceLocation(id);
-            buf.writeUtf(entry.getCategory());
+            buf.writeUtf(entry.category());
 
-            String req = entry.getAdvancementRequirement();
+            String req = entry.advancementRequirement();
             boolean isUnlocked = req == null || req.isEmpty() || hasAdvancement(player, req);
 
             buf.writeBoolean(isUnlocked);
-            buf.writeUtf(entry.getTitle());
-            buf.writeUtf(entry.getDescription());
+            buf.writeUtf(entry.title());
+            buf.writeUtf(entry.description());
             buf.writeUtf(req != null ? req : "");
         });
 

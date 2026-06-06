@@ -20,8 +20,8 @@ public class JournalScreen extends Screen {
 
     private final int imageWidth = 271;
     private final int imageHeight = 180;
-    private static final int maxTitleWidth = 90;
-    private static final int maxPageWidth = 94;
+    private static final int MAX_TITLE_WIDTH = 90;
+    private static final int MAX_PAGE_WIDTH = 94;
     private int leftPos;
     private int topPos;
 
@@ -55,7 +55,7 @@ public class JournalScreen extends Screen {
     private void groupData() {
         groupedEntries.clear();
         for (JournalEntry entry : TravellersHandbookClient.CLIENT_ENTRIES_CACHE) {
-            groupedEntries.computeIfAbsent(entry.getCategory(), k -> new ArrayList<>()).add(entry);
+            groupedEntries.computeIfAbsent(entry.category(), k -> new ArrayList<>()).add(entry);
         }
         if (!groupedEntries.isEmpty() && expandedCategories.isEmpty()) {
             expandedCategories.add(groupedEntries.keySet().iterator().next());
@@ -78,27 +78,27 @@ public class JournalScreen extends Screen {
                 for (JournalEntry entry : group.getValue()) {
 
                     Component desc = Component.translatable("gui.travellershandbook.locked_description");
-                    boolean isLocked = entry.getDescription().equals(desc.getString());
+                    boolean isLocked = entry.description().equals(desc.getString());
 
                     if (isLocked) {
-                        String displayTitleString = "altfont_" + entry.getTitle();
-                        String originalTitle = entry.getTitle();
+                        String displayTitleString = "altfont_" + entry.title();
+                        String originalTitle = entry.title();
 
                         if (originalTitle.length() > 16) {
                             originalTitle = originalTitle.substring(0, 13) + "...";
                         }
 
                         Component singleLineComponent = Component.literal(originalTitle).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
-                        JournalEntry displayEntry = new JournalEntry(entry.getCategory(), displayTitleString, entry.getDescription(), entry.getAdvancementRequirement());
+                        JournalEntry displayEntry = new JournalEntry(entry.category(), displayTitleString, entry.description(), entry.advancementRequirement());
 
                         visibleRows.add(new UiRow(categoryName, displayEntry, false, singleLineComponent.getVisualOrderText()));
                     } else {
-                        String displayTitleString = entry.getTitle();
+                        String displayTitleString = entry.title();
                         Component fullTitleText = Component.literal(displayTitleString);
-                        List<FormattedCharSequence> splitTitleLines = this.font.split(fullTitleText, maxTitleWidth);
+                        List<FormattedCharSequence> splitTitleLines = this.font.split(fullTitleText, MAX_TITLE_WIDTH);
                         if (splitTitleLines.isEmpty()) continue;
 
-                        JournalEntry displayEntry = new JournalEntry(entry.getCategory(), displayTitleString, entry.getDescription(), entry.getAdvancementRequirement());
+                        JournalEntry displayEntry = new JournalEntry(entry.category(), displayTitleString, entry.description(), entry.advancementRequirement());
                         visibleRows.add(new UiRow(categoryName, displayEntry, false, splitTitleLines.get(0)));
 
                         for (int i = 1; i < splitTitleLines.size(); i++) {
@@ -168,7 +168,7 @@ public class JournalScreen extends Screen {
                     if (row.isHeader && hoveredRow.isHeader) {
                         isHighlighted = row.categoryName.equals(hoveredRow.categoryName);
                     } else if (!row.isHeader && !hoveredRow.isHeader) {
-                        isHighlighted = row.entry.getAdvancementRequirement().equals(hoveredRow.entry.getAdvancementRequirement());
+                        isHighlighted = row.entry.advancementRequirement().equals(hoveredRow.entry.advancementRequirement());
                     }
                 }
 
@@ -176,7 +176,7 @@ public class JournalScreen extends Screen {
                 if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size()) {
                     UiRow selectedRow = visibleRows.get(selectedRowIndex);
                     if (!row.isHeader && !selectedRow.isHeader) {
-                        isSelected = row.entry.getAdvancementRequirement().equals(selectedRow.entry.getAdvancementRequirement());
+                        isSelected = row.entry.advancementRequirement().equals(selectedRow.entry.advancementRequirement());
                     }
                 }
 
@@ -192,7 +192,7 @@ public class JournalScreen extends Screen {
                     }
 
                     Component description = Component.translatable("gui.travellershandbook.locked_description");
-                    if (row.entry.getDescription().equals(description.getString())) {
+                    if (row.entry.description().equals(description.getString())) {
 
                         TextExtractor extractor = new TextExtractor();
                         row.renderedTextLine.accept(extractor);
@@ -231,7 +231,7 @@ public class JournalScreen extends Screen {
             if (!activeRow.isHeader) {
                 JournalEntry activeEntry = activeRow.entry;
 
-                String cleanRightTitle = activeEntry.getTitle();
+                String cleanRightTitle = activeEntry.title();
                 if (cleanRightTitle.startsWith("altfont_")) {
                     cleanRightTitle = cleanRightTitle.replace("altfont_", "");
                     if (cleanRightTitle.length() > 13) {
@@ -247,18 +247,18 @@ public class JournalScreen extends Screen {
                 }
                 rightPageY += 11;
 
-                guiGraphics.drawString(this.font, "§o" + activeEntry.getCategory(), rightPageX, rightPageY, 0xFF666666, false);
+                guiGraphics.drawString(this.font, "§o" + activeEntry.category(), rightPageX, rightPageY, 0xFF666666, false);
                 rightPageY += 13;
 
-                Component bodyText = Component.literal(activeEntry.getDescription());
+                Component bodyText = Component.literal(activeEntry.description());
                 Component lockedDescCheck = Component.translatable("gui.travellershandbook.locked_description");
-                boolean isRightPageLocked = activeEntry.getDescription().equals(lockedDescCheck.getString());
+                boolean isRightPageLocked = activeEntry.description().equals(lockedDescCheck.getString());
                 if (isRightPageLocked) {
                     bodyText = Component.translatable("gui.travellershandbook.locked_description") // A placeholder lang entry or fallback text
                             .withStyle(style -> style.withFont(Minecraft.ALT_FONT));
                 }
 
-                List<FormattedCharSequence> lines = this.font.split(bodyText, maxPageWidth);
+                List<FormattedCharSequence> lines = this.font.split(bodyText, MAX_PAGE_WIDTH);
                 this.totalWrappedLines = lines.size();
 
                 int maxRightScrollIndex = Math.max(0, this.totalWrappedLines - maxVisibleLinesOnPage);
@@ -304,7 +304,7 @@ public class JournalScreen extends Screen {
                 String helpKey = activeRow.isExpanded ? "gui.travellershandbook.help.expanded" : "gui.travellershandbook.help.collapsed";
                 Component helperMsg = Component.translatable(helpKey);
 
-                List<FormattedCharSequence> lines = this.font.split(helperMsg, maxPageWidth);
+                List<FormattedCharSequence> lines = this.font.split(helperMsg, MAX_PAGE_WIDTH);
                 for (int i = 0; i < lines.size(); i++) {
                     guiGraphics.drawString(this.font, lines.get(i), rightPageX, rightPageY + (i * 9), 0xFF777777, false);
                 }

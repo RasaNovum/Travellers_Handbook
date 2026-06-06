@@ -49,16 +49,16 @@ public class TravellersHandbookClient implements ClientModInitializer {
 				if (client.player != null && !CLIENT_ENTRIES_CACHE.isEmpty()) {
 					String lockedDescMarker = Component.translatable("gui.travellershandbook.locked_description").getString();
 					for (JournalEntry newEntry : tempEntries) {
-						boolean isNewEntryLocked = newEntry.getDescription().equals(lockedDescMarker);
+						boolean isNewEntryLocked = newEntry.description().equals(lockedDescMarker);
 						if (!isNewEntryLocked) {
 
 							boolean wasPreviouslyLocked = CLIENT_ENTRIES_CACHE.stream()
-									.anyMatch(cachedEntry -> cachedEntry.getAdvancementRequirement().equals(newEntry.getAdvancementRequirement())
-											&& cachedEntry.getDescription().equals(lockedDescMarker));
+									.anyMatch(cachedEntry -> cachedEntry.advancementRequirement().equals(newEntry.advancementRequirement())
+											&& cachedEntry.description().equals(lockedDescMarker));
 
 							if (wasPreviouslyLocked) {
 								net.rasanovum.travellershandbook.client.JournalNotificationManager.notifyNewEntry(
-										newEntry.getTitle(),
+										newEntry.title(),
 										"gui.travellershandbook.toast.message"
 								);
 							}

@@ -22,7 +22,7 @@ public class PlayerAdvancementMixin {
         String earnedId = advancement.getId().toString();
 
         boolean unlockedNewNote = JournalDataLoader.SERVER_ENTRIES.values().stream()
-                .anyMatch(entry -> entry.getAdvancementRequirement().equals(earnedId));
+                .anyMatch(entry -> entry.advancementRequirement().equals(earnedId));
 
         if (unlockedNewNote) {
             JournalNetworkManager.syncToPlayer(this.player);
