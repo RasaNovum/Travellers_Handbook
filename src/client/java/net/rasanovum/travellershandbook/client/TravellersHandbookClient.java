@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.rasanovum.travellershandbook.client.hud.JournalTutorialOverlay;
 import net.rasanovum.travellershandbook.client.screen.JournalScreen;
 import net.rasanovum.travellershandbook.data.JournalEntry;
@@ -83,6 +84,18 @@ public class TravellersHandbookClient implements ClientModInitializer {
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player != null) {
+				int currentItemCount = 0;
+				for (int i = 0; i < client.player.getInventory().getContainerSize(); i++) {
+					ItemStack stack = client.player.getInventory().getItem(i);
+					if (!stack.isEmpty()) {
+						currentItemCount += stack.getCount();
+					}
+				}
+
+				if (currentItemCount > JournalTutorialOverlay.lastInventoryCount) {
+					JournalTutorialOverlay.lastPickupTime = client.player.tickCount;
+				}
+
 				while (openJournalKey.consumeClick()) {
 					client.player.playSound(
 							net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN,

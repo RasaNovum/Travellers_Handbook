@@ -12,8 +12,10 @@ import net.rasanovum.travellershandbook.client.screen.JournalScreen;
 
 public class JournalTutorialOverlay {
     public static boolean HAS_OPENED_JOURNAL = false;
-
     private static final ItemStack ICON = new ItemStack(Items.WRITABLE_BOOK);
+
+    public static int lastPickupTime = -100;
+    public static int lastInventoryCount = 0;
 
     public static void render(GuiGraphics guiGraphics, float partialTick) {
         Minecraft mc = Minecraft.getInstance();
@@ -25,6 +27,14 @@ public class JournalTutorialOverlay {
             }
             return;
         }
+
+        boolean holdingMainHand = !mc.player.getMainHandItem().isEmpty();
+        boolean holdingOffhand = !mc.player.getOffhandItem().isEmpty();
+        if (holdingMainHand || holdingOffhand) return;
+
+        long currentTick =mc.player.tickCount;
+        long ticksSincePickup = currentTick - lastPickupTime;
+        if (ticksSincePickup >= 0 && ticksSincePickup < 100) return;
 
         // sin for wave fade effect
         float totalTicks = mc.player.tickCount + partialTick;
