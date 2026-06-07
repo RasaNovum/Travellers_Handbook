@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.rasanovum.travellershandbook.client.hud.JournalTutorialOverlay;
 import net.rasanovum.travellershandbook.client.screen.JournalScreen;
 import net.rasanovum.travellershandbook.data.JournalEntry;
 import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
@@ -25,6 +26,8 @@ public class TravellersHandbookClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+
+		net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register(JournalTutorialOverlay::render);
 
 		ClientPlayNetworking.registerGlobalReceiver(JournalNetworkManager.SYNC_PACKET_ID, (client, handler, buf, responseSender) -> {
 			int size = buf.readInt();
@@ -57,7 +60,7 @@ public class TravellersHandbookClient implements ClientModInitializer {
 											&& cachedEntry.description().equals(lockedDescMarker));
 
 							if (wasPreviouslyLocked) {
-								net.rasanovum.travellershandbook.client.JournalNotificationManager.notifyNewEntry(
+								JournalNotificationManager.notifyNewEntry(
 										newEntry.title(),
 										"gui.travellershandbook.toast.message"
 								);
@@ -86,6 +89,8 @@ public class TravellersHandbookClient implements ClientModInitializer {
 							1.0F,
 							1.0F
 					);
+
+					JournalTutorialOverlay.HAS_OPENED_JOURNAL = true;
 					Minecraft.getInstance().setScreen(new JournalScreen());
 				}
 			}

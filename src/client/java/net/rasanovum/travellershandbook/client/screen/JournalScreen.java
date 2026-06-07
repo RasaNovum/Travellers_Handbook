@@ -254,7 +254,7 @@ public class JournalScreen extends Screen {
                 Component lockedDescCheck = Component.translatable("gui.travellershandbook.locked_description");
                 boolean isRightPageLocked = activeEntry.description().equals(lockedDescCheck.getString());
                 if (isRightPageLocked) {
-                    bodyText = Component.translatable("gui.travellershandbook.locked_description") // A placeholder lang entry or fallback text
+                    bodyText = Component.translatable("gui.travellershandbook.locked_description") // placeholder description that gets scrambled
                             .withStyle(style -> style.withFont(Minecraft.ALT_FONT));
                 }
 
@@ -418,8 +418,9 @@ public class JournalScreen extends Screen {
     private String scrambleToRunes(String text, long baseSeed, long currentTick) {
         StringBuilder scrambled = new StringBuilder();
 
-        long animatedTick = currentTick / 2L;
+        long animatedTick = currentTick / 2L; // once every 10 ticks
 
+        // set of runes that are similar width
         char[] fixedWidthRunes = {
                 'a', 'b', 'c', 'd', 'e', 'g', 'h', 'j', 'k', 'n',
                 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'x', 'y', 'z'
@@ -434,7 +435,7 @@ public class JournalScreen extends Screen {
                 java.util.Random rand = new java.util.Random(uniqueCharSeed);
 
                 char uniformRune = fixedWidthRunes[rand.nextInt(fixedWidthRunes.length)];
-                scrambled.append(uniformRune);
+                scrambled.append(uniformRune); // add one of the random runes from the fixed set of runes
             }
         }
 
