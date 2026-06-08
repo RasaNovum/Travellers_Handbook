@@ -184,6 +184,16 @@ public class JournalScreen extends Screen {
 
                 if (row.isHeader) {
                     guiGraphics.drawString(this.font, row.renderedTextLine, leftPageX, currentY, color, false);
+                    boolean categoryHasUnread = TravellersHandbookClient.UNREAD_ENTRIES_SET.stream().anyMatch(unreadRequirementId -> {
+                        return TravellersHandbookClient.CLIENT_ENTRIES_CACHE.stream().anyMatch(cached -> cached.advancementRequirement().equals(unreadRequirementId) && cached.category().equals(row.categoryName));
+                    });
+
+                    if (categoryHasUnread) {
+                        // int categoryTextWidth = this.font.width(row.renderedTextLine);
+                        int notificationX = leftPageX - 5;
+
+                        guiGraphics.drawString(this.font, "§l!", notificationX, currentY, 0xFFE69138, false);
+                    }
                 } else {
                     int indentX = leftPageX + 12;
                     boolean isUnread = TravellersHandbookClient.UNREAD_ENTRIES_SET.contains(row.entry.advancementRequirement());
