@@ -24,6 +24,7 @@ public class TravellersHandbookClient implements ClientModInitializer {
 		return openJournalKey;
 	}
 	public static final java.util.List<JournalEntry> CLIENT_ENTRIES_CACHE = new java.util.ArrayList<>();
+	public static final java.util.Set<String> UNREAD_ENTRIES_SET = new java.util.HashSet<>();
 
 	@Override
 	public void onInitializeClient() {
@@ -61,6 +62,7 @@ public class TravellersHandbookClient implements ClientModInitializer {
 											&& cachedEntry.description().equals(lockedDescMarker));
 
 							if (wasPreviouslyLocked) {
+								UNREAD_ENTRIES_SET.add(newEntry.advancementRequirement());
 								JournalNotificationManager.notifyNewEntry(
 										newEntry.title(),
 										"gui.travellershandbook.toast.message"

@@ -186,9 +186,14 @@ public class JournalScreen extends Screen {
                     guiGraphics.drawString(this.font, row.renderedTextLine, leftPageX, currentY, color, false);
                 } else {
                     int indentX = leftPageX + 12;
+                    boolean isUnread = TravellersHandbookClient.UNREAD_ENTRIES_SET.contains(row.entry.advancementRequirement());
 
-                    if (isSelected && !row.isTitleExtension) {
-                        guiGraphics.drawString(this.font, "> ", leftPageX + 4, currentY, 0xFF007700, false);
+                    if (!row.isTitleExtension) {
+                        if (isSelected) {
+                            guiGraphics.drawString(this.font, "> ", leftPageX + 4, currentY, 0xFF007700, false);
+                        } else if (isUnread) {
+                            guiGraphics.drawString(this.font, "§l!", leftPageX + 6, currentY, 0xFFE69138, false);
+                        }
                     }
 
                     Component description = Component.translatable("gui.travellershandbook.locked_description");
@@ -345,6 +350,12 @@ public class JournalScreen extends Screen {
                                     this.selectedRowIndex = -1;
                                 } else {
                                     this.selectedRowIndex = actualDataIndex;
+
+                                    if (clickedRow.entry != null) {
+                                        TravellersHandbookClient.UNREAD_ENTRIES_SET.remove(
+                                                clickedRow.entry.advancementRequirement()
+                                        );
+                                    }
                                 }
                             }
 
