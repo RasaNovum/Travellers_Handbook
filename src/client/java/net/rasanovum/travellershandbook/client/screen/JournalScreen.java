@@ -29,7 +29,6 @@ public class JournalScreen extends Screen {
     private final Set<String> expandedCategories = new HashSet<>();
     private final List<UiRow> visibleRows = new ArrayList<>();
     private int selectedRowIndex = -1;
-    private int hoveredRowIndex = -1;
 
     private double leftPageScrollAmount = 0;
     private final int maxVisibleRowsOnLeftPage = 13;
@@ -116,7 +115,7 @@ public class JournalScreen extends Screen {
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.rebuildVisibleRows();
         this.renderBackground(guiGraphics);
-        this.hoveredRowIndex = -1;
+        int hoveredRowIndex = -1;
 
         RenderSystem.setShaderTexture(0, CUSTOM_BOOK_TEXTURE);
         guiGraphics.blit(CUSTOM_BOOK_TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, this.imageWidth, this.imageHeight);
@@ -133,7 +132,7 @@ public class JournalScreen extends Screen {
                 if (mouseY >= rTop && mouseY <= rTop + 9) {
                     int hoveredIndex = startRowOffset + i;
                     if (hoveredIndex < visibleRows.size()) {
-                        this.hoveredRowIndex = hoveredIndex;
+                        hoveredRowIndex = hoveredIndex;
                     }
                 }
             }
@@ -184,9 +183,9 @@ public class JournalScreen extends Screen {
 
                 if (row.isHeader) {
                     guiGraphics.drawString(this.font, row.renderedTextLine, leftPageX, currentY, color, false);
-                    boolean categoryHasUnread = TravellersHandbookClient.UNREAD_ENTRIES_SET.stream().anyMatch(unreadRequirementId -> {
-                        return TravellersHandbookClient.CLIENT_ENTRIES_CACHE.stream().anyMatch(cached -> cached.advancementRequirement().equals(unreadRequirementId) && cached.category().equals(row.categoryName));
-                    });
+                    boolean categoryHasUnread = TravellersHandbookClient.UNREAD_ENTRIES_SET.stream().anyMatch(unreadRequirementId ->
+                            TravellersHandbookClient.CLIENT_ENTRIES_CACHE.stream().anyMatch(cached ->
+                                    cached.advancementRequirement().equals(unreadRequirementId) && cached.category().equals(row.categoryName)));
 
                     if (categoryHasUnread) {
                         // int categoryTextWidth = this.font.width(row.renderedTextLine);
