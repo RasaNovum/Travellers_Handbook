@@ -8,10 +8,10 @@
 		"Me!"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "https://rasanovum.ca",
+		"sources": "https://github.com/RasaNovum/Travellers_Handbook"
 	},
-	"license": "CC0-1.0",
+	"license": "RSL-1.0",
 	"icon": "assets/travellers-handbook/icon.png",
 	"environment": "*",
 	"entrypoints": {
