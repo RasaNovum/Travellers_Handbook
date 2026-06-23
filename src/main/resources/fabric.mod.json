@@ -3,9 +3,9 @@
 	"id": "travellers-handbook",
 	"version": "${version}",
 	"name": "Traveller's Handbook",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "A mod that adds a journal filled with entries that the player can discover as they explore the world around them.",
 	"authors": [
-		"Me!"
+		"Rasa Novum"
 	],
 	"contact": {
 		"homepage": "https://rasanovum.ca",

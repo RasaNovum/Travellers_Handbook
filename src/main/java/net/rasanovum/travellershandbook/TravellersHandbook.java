@@ -29,6 +29,6 @@ public class TravellersHandbook implements ModInitializer {
 			JournalNetworkManager.syncToPlayer(newPlayer);
 		});
 
-		LOGGER.info("Hello Fabric world!");
+		LOGGER.info("I used to be a traveller like you, until I took a handbook to the knee.");
 	}
 }
