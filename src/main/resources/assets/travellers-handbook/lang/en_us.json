@@ -5,7 +5,7 @@
   "gui.travellershandbook.title": "Traveller's Handbook",
   "gui.travellershandbook.index": "Journal Entries",
   "gui.travellershandbook.no_entries": "No entries found",
-  "gui.travellershandbook.locked_description": "This contents of this entry are unknown. Unlock new entries by exploring the world around you!",
+  "gui.travellershandbook.locked_description": "It seems that the contents of this entry are currently unknown. Unlock new entries by exploring the world around you!",
   "gui.travellershandbook.help.expanded": "Click the category to collapse it.",
   "gui.travellershandbook.help.collapsed": "Click the category to expand it.",
   "gui.travellershandbook.toast.title": "Journal updated",

@@ -21,7 +21,8 @@ public class JournalScreen extends Screen {
     private final int imageWidth = 335;
     private final int imageHeight = 220;
     private static final int MAX_TITLE_WIDTH = 90;
-    private static final int MAX_PAGE_WIDTH = 94;
+    private static final int MAX_PAGE_WIDTH = 108; //94
+    private static final int MAX_RUNE_LINE_WIDTH = 94;
     private int leftPos;
     private int topPos;
 
@@ -138,11 +139,11 @@ public class JournalScreen extends Screen {
             }
         }
 
-        int leftPageX = this.leftPos + 50; //20
+        int leftPageX = this.leftPos + 54; //20
         int leftPageY = this.topPos + 38; //18
         Component indexHeader = Component.translatable("gui.travellershandbook.index").withStyle(net.minecraft.ChatFormatting.UNDERLINE);
         Component noEntries = Component.translatable("gui.travellershandbook.no_entries");
-        int leftPageTitleX = leftPageX + 14;
+        int leftPageTitleX = leftPageX + 10;
         guiGraphics.drawString(this.font, indexHeader, leftPageTitleX, leftPageY, 0xFF222222, false);
         leftPageY += 14;
 
@@ -236,7 +237,7 @@ public class JournalScreen extends Screen {
         }
 
         // render right page
-        int rightPageX = this.leftPos + 182; //146
+        int rightPageX = this.leftPos + 180; //146 182
         int rightPageY = this.topPos + 38; //18
 
         if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size() && !visibleRows.isEmpty()) {
@@ -272,7 +273,8 @@ public class JournalScreen extends Screen {
                             .withStyle(style -> style.withFont(Minecraft.ALT_FONT));
                 }
 
-                List<FormattedCharSequence> lines = this.font.split(bodyText, MAX_PAGE_WIDTH);
+                int dynamicWrapWidth = isRightPageLocked ? MAX_RUNE_LINE_WIDTH : MAX_PAGE_WIDTH;
+                List<FormattedCharSequence> lines = this.font.split(bodyText, dynamicWrapWidth);
                 this.totalWrappedLines = lines.size();
 
                 int maxRightScrollIndex = Math.max(0, this.totalWrappedLines - maxVisibleLinesOnPage);
@@ -384,7 +386,7 @@ public class JournalScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        int centerCrease = this.leftPos + 175; //135
+        int centerCrease = this.leftPos + 165; //135
 
         if (mouseX >= this.leftPos && mouseX < centerCrease) {
             if (visibleRows.size() > maxVisibleRowsOnLeftPage) {
