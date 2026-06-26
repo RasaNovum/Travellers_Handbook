@@ -16,10 +16,10 @@ import java.util.*;
 
 public class JournalScreen extends Screen {
     private static final ResourceLocation CUSTOM_BOOK_TEXTURE =
-            new ResourceLocation("travellers-handbook", "textures/gui/journal_background.png");
+            new ResourceLocation("travellers-handbook", "textures/gui/th_journal_background.png");
 
-    private final int imageWidth = 271;
-    private final int imageHeight = 180;
+    private final int imageWidth = 335;
+    private final int imageHeight = 220;
     private static final int MAX_TITLE_WIDTH = 90;
     private static final int MAX_PAGE_WIDTH = 94;
     private int leftPos;
@@ -122,11 +122,11 @@ public class JournalScreen extends Screen {
 
 
         // render left page
-        int indexLeftX = this.leftPos + 24;
-        int indexRowStartY = this.topPos + 32;
+        int indexLeftX = this.leftPos + 54; //24
+        int indexRowStartY = this.topPos + 52; //32
         int startRowOffset = (int) this.leftPageScrollAmount;
 
-        if (mouseX >= indexLeftX && mouseX <= this.leftPos + 124) {
+        if (mouseX >= indexLeftX && mouseX <= this.leftPos + 154) { //124
             for (int i = 0; i < Math.min(visibleRows.size(), maxVisibleRowsOnLeftPage); i++) {
                 int rTop = indexRowStartY + (i * 10);
                 if (mouseY >= rTop && mouseY <= rTop + 9) {
@@ -138,12 +138,12 @@ public class JournalScreen extends Screen {
             }
         }
 
-        int leftPageX = this.leftPos + 20;
-        int leftPageY = this.topPos + 18;
+        int leftPageX = this.leftPos + 50; //20
+        int leftPageY = this.topPos + 38; //18
         Component indexHeader = Component.translatable("gui.travellershandbook.index").withStyle(net.minecraft.ChatFormatting.UNDERLINE);
         Component noEntries = Component.translatable("gui.travellershandbook.no_entries");
-
-        guiGraphics.drawString(this.font, indexHeader, leftPageX, leftPageY, 0xFF222222, false);
+        int leftPageTitleX = leftPageX + 14;
+        guiGraphics.drawString(this.font, indexHeader, leftPageTitleX, leftPageY, 0xFF222222, false);
         leftPageY += 14;
 
         if (visibleRows.isEmpty()) {
@@ -225,8 +225,8 @@ public class JournalScreen extends Screen {
 
             // left page scrollbar
             if (visibleRows.size() > maxVisibleRowsOnLeftPage) {
-                int leftBarX = this.leftPos + 126;
-                int leftBarTrackY = this.topPos + 32;
+                int leftBarX = this.leftPos + 156; //126
+                int leftBarTrackY = this.topPos + 52; //32
                 int leftBarTrackHeight = maxVisibleRowsOnLeftPage * 10;
 
                 int thumbHeight = Math.max(8, (int) ((double) maxVisibleRowsOnLeftPage / visibleRows.size() * leftBarTrackHeight));
@@ -236,8 +236,8 @@ public class JournalScreen extends Screen {
         }
 
         // render right page
-        int rightPageX = this.leftPos + 146;
-        int rightPageY = this.topPos + 18;
+        int rightPageX = this.leftPos + 182; //146
+        int rightPageY = this.topPos + 38; //18
 
         if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size() && !visibleRows.isEmpty()) {
             UiRow activeRow = visibleRows.get(selectedRowIndex);
@@ -302,8 +302,8 @@ public class JournalScreen extends Screen {
 
                 // right page scrollbar
                 if (this.totalWrappedLines > maxVisibleLinesOnPage) {
-                    int barX = this.leftPos + 252;
-                    int barTrackY = this.topPos + 42;
+                    int barX = this.leftPos + 288; //252
+                    int barTrackY = this.topPos + 62; //42
                     int barTrackHeight = maxVisibleLinesOnPage * 9;
 
                     int thumbHeight = Math.max(8, (int) ((double) maxVisibleLinesOnPage / this.totalWrappedLines * barTrackHeight));
@@ -331,11 +331,11 @@ public class JournalScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
-            int leftPageX = this.leftPos + 24;
-            int rowStartY = this.topPos + 32;
+            int leftPageX = this.leftPos + 54; //24
+            int rowStartY = this.topPos + 52; //32
             int startRowOffset = (int) this.leftPageScrollAmount;
 
-            if (mouseX >= leftPageX && mouseX <= this.leftPos + 124) {
+            if (mouseX >= leftPageX && mouseX <= this.leftPos + 144) { //124
                 for (int i = 0; i < Math.min(visibleRows.size(), maxVisibleRowsOnLeftPage); i++) {
                     int rowTop = rowStartY + (i * 10);
                     int rowBottom = rowTop + 9;
@@ -384,7 +384,7 @@ public class JournalScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        int centerCrease = this.leftPos + 135;
+        int centerCrease = this.leftPos + 175; //135
 
         if (mouseX >= this.leftPos && mouseX < centerCrease) {
             if (visibleRows.size() > maxVisibleRowsOnLeftPage) {
