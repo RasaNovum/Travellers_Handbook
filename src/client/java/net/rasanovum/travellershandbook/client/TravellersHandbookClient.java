@@ -1,6 +1,7 @@
 package net.rasanovum.travellershandbook.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import eu.midnightdust.lib.config.MidnightConfig;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -28,6 +29,7 @@ public class TravellersHandbookClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+		MidnightConfig.init("travellers-handbook", TravellersHandbookConfig.class);
 
 		net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register(JournalTutorialOverlay::render);
 

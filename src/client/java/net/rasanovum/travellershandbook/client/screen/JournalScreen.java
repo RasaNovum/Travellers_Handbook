@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.rasanovum.travellershandbook.client.TravellersHandbookConfig;
 import net.rasanovum.travellershandbook.client.TravellersHandbookClient;
 import net.rasanovum.travellershandbook.data.JournalEntry;
 
@@ -21,8 +22,10 @@ public class JournalScreen extends Screen {
     private final int imageWidth = 335;
     private final int imageHeight = 220;
     private static final int MAX_TITLE_WIDTH = 90;
-    private static final int MAX_PAGE_WIDTH = 108; //94
+    private static final int MAX_PAGE_WIDTH = 100;
     private static final int MAX_RUNE_LINE_WIDTH = 94;
+    private static final int MAX_TITLE_LINES = 2;
+    private static final int RIGHT_PAGE_CONTENT_BOTTOM = 188;
     private int leftPos;
     private int topPos;
 
@@ -36,7 +39,7 @@ public class JournalScreen extends Screen {
 
     private double rightPageScrollAmount = 0;
     private int totalWrappedLines = 0;
-    private final int maxVisibleLinesOnPage = 14;
+    private int maxVisibleLinesOnPage = 14;
 
     public JournalScreen() {
         super(Component.translatable("gui.travellershandbook.title"));
@@ -246,21 +249,26 @@ public class JournalScreen extends Screen {
             if (!activeRow.isHeader) {
                 JournalEntry activeEntry = activeRow.entry;
 
-                String cleanRightTitle = activeEntry.title();
-                if (cleanRightTitle.startsWith("altfont_")) {
-                    cleanRightTitle = cleanRightTitle.replace("altfont_", "");
-                    if (cleanRightTitle.length() > 13) {
-                        cleanRightTitle = cleanRightTitle.substring(0, 11) + "...";
+                boolean isLockedTitle = activeEntry.title().startsWith("altfont_");
+                String titleToWrap = isLockedTitle ? createObfuscatedTitle(activeEntry) : activeEntry.title();
+                int titleWidth = isLockedTitle ? MAX_RUNE_LINE_WIDTH : MAX_PAGE_WIDTH;
+                Component titleComponent = isLockedTitle
+                        ? Component.literal(titleToWrap).withStyle(style -> style.withFont(Minecraft.ALT_FONT))
+                        : Component.literal(titleToWrap);
+                List<FormattedCharSequence> wrappedTitleLines = this.font.split(titleComponent, titleWidth);
+                int titleLineCount = Math.min(wrappedTitleLines.size(), MAX_TITLE_LINES);
+                long entrySeed = getEntrySeed(activeEntry);
+                for (int i = 0; i < titleLineCount; i++) {
+                    FormattedCharSequence titleLine = wrappedTitleLines.get(i);
+                    if (isLockedTitle) {
+                        TextExtractor extractor = new TextExtractor();
+                        titleLine.accept(extractor);
+                        String runeText = scrambleToRunes(extractor.getText(), entrySeed + i * 31L, this.minecraft.player.tickCount);
+                        titleLine = Component.literal(runeText).withStyle(style -> style.withFont(Minecraft.ALT_FONT)).getVisualOrderText();
                     }
-
-                    String titleScramble = scrambleToRunes(cleanRightTitle, 500L, this.minecraft.player.tickCount);
-
-                    Component runeTitle = Component.literal(titleScramble).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
-                    guiGraphics.drawString(this.font, runeTitle.getVisualOrderText(), rightPageX, rightPageY, 0xFF887766, false);
-                } else {
-                    guiGraphics.drawString(this.font, "§l" + cleanRightTitle, rightPageX, rightPageY, 0xFF111111, false);
+                    guiGraphics.drawString(this.font, titleLine, rightPageX, rightPageY + i * 9, isLockedTitle ? 0xFF887766 : 0xFF111111, false);
                 }
-                rightPageY += 11;
+                rightPageY += titleLineCount * 9 + 2;
 
                 guiGraphics.drawString(this.font, "§o" + activeEntry.category(), rightPageX, rightPageY, 0xFF666666, false);
                 rightPageY += 13;
@@ -269,13 +277,14 @@ public class JournalScreen extends Screen {
                 Component lockedDescCheck = Component.translatable("gui.travellershandbook.locked_description");
                 boolean isRightPageLocked = activeEntry.description().equals(lockedDescCheck.getString());
                 if (isRightPageLocked) {
-                    bodyText = Component.translatable("gui.travellershandbook.locked_description") // placeholder description that gets scrambled
+                    bodyText = Component.literal(createObfuscatedBody(activeEntry))
                             .withStyle(style -> style.withFont(Minecraft.ALT_FONT));
                 }
 
                 int dynamicWrapWidth = isRightPageLocked ? MAX_RUNE_LINE_WIDTH : MAX_PAGE_WIDTH;
                 List<FormattedCharSequence> lines = this.font.split(bodyText, dynamicWrapWidth);
                 this.totalWrappedLines = lines.size();
+                this.maxVisibleLinesOnPage = Math.max(0, (this.topPos + RIGHT_PAGE_CONTENT_BOTTOM - rightPageY) / 9);
 
                 int maxRightScrollIndex = Math.max(0, this.totalWrappedLines - maxVisibleLinesOnPage);
                 if (this.rightPageScrollAmount > maxRightScrollIndex) {
@@ -293,7 +302,7 @@ public class JournalScreen extends Screen {
                         lines.get(lineIndex).accept(extractor);
                         String rawLineText = extractor.getText();
 
-                        String randomizedLine = scrambleToRunes(rawLineText, lineIndex * 117L, this.minecraft.player.tickCount);
+                        String randomizedLine = scrambleToRunes(rawLineText, getEntrySeed(activeEntry) + lineIndex * 117L, this.minecraft.player.tickCount);
 
                         Component runeBodyLine = Component.literal(randomizedLine).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
                         guiGraphics.drawString(this.font, runeBodyLine.getVisualOrderText(), rightPageX, currentLineY, 0xFF554433, false);
@@ -372,7 +381,7 @@ public class JournalScreen extends Screen {
 
                             this.minecraft.getSoundManager().play(
                                     net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
-                                            net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F
+                                            net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, 0.85F
                                     )
                             );
                             return true;
@@ -440,7 +449,7 @@ public class JournalScreen extends Screen {
     private String scrambleToRunes(String text, long baseSeed, long currentTick) {
         StringBuilder scrambled = new StringBuilder();
 
-        long animatedTick = currentTick / 2L; // once every 10 ticks
+        long animatedTick = TravellersHandbookConfig.reduceRuneMotion ? 0L : currentTick / 2L;
 
         // set of runes that are similar width
         char[] fixedWidthRunes = {
@@ -462,6 +471,46 @@ public class JournalScreen extends Screen {
         }
 
         return scrambled.toString();
+    }
+
+    private String createObfuscatedBody(JournalEntry entry) {
+        Random random = new Random(getEntrySeed(entry) ^ 0x5DEECE66DL);
+        int targetLength = 190 + random.nextInt(61);
+        StringBuilder text = new StringBuilder();
+        int wordsInSentence = 0;
+        while (text.length() < targetLength) {
+            if (!text.isEmpty()) text.append(' ');
+            text.append(createCipherWord(random));
+            wordsInSentence++;
+            if (wordsInSentence >= 4 + random.nextInt(7)) {
+                text.append('.');
+                wordsInSentence = 0;
+            }
+        }
+        return text.toString();
+    }
+
+    private String createCipherWord(Random random) {
+        String[] consonants = {"b", "c", "d", "f", "g", "h", "k", "l", "m", "n", "p", "r", "s", "t", "v", "w", "z"};
+        String[] vowels = {"a", "e", "i", "o", "u"};
+        // most words are short enough for several to share a rune-font line with occasional longer words being placed in to appear more natural
+        int length = random.nextInt(10) == 0 ? 6 + random.nextInt(2) : 2 + random.nextInt(4);
+        StringBuilder word = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            String[] letters = i % 2 == 0 ? consonants : vowels;
+            word.append(letters[random.nextInt(letters.length)]);
+        }
+        return word.toString();
+    }
+
+    private String createObfuscatedTitle(JournalEntry entry) {
+        Random random = new Random(getEntrySeed(entry));
+        String[] words = {"ancient", "cipher", "forgotten", "hidden", "mystery", "runes", "sealed", "veiled"};
+        return words[random.nextInt(words.length)] + " " + words[random.nextInt(words.length)];
+    }
+
+    private long getEntrySeed(JournalEntry entry) {
+        return Objects.hash(entry.category(), entry.title(), entry.advancementRequirement());
     }
 
     private static class TextExtractor implements net.minecraft.util.FormattedCharSink {
