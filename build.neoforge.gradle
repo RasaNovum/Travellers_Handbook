@@ -1,0 +1,106 @@
+plugins {
+	id 'net.neoforged.moddev'
+	id 'maven-publish'
+}
+
+version = "${project.mod_version}+${project.minecraft_version}-neoforge"
+group = project.maven_group
+
+base {
+	archivesName = 'travellers-handbook'
+}
+
+sourceSets.main.java.exclude '**/loaders/fabric/**'
+sourceSets.main.java.srcDir(rootProject.file('src/client/java'))
+
+repositories {
+	maven {
+		name = 'Modrinth'
+		url = 'https://api.modrinth.com/maven'
+		content {
+			includeGroup 'maven.modrinth'
+		}
+	}
+	maven { url = 'https://maven.neoforged.net/releases/' }
+	mavenCentral()
+}
+
+neoForge {
+	version = project.neoforge_version
+
+	runs {
+		register('client') {
+			client()
+			ideName = "Traveller's Handbook ${project.minecraft_version} NeoForge Client"
+		}
+		register('server') {
+			server()
+			ideName = "Traveller's Handbook ${project.minecraft_version} NeoForge Server"
+		}
+	}
+
+	mods {
+		register('travellers_handbook') {
+			sourceSet sourceSets.main
+		}
+	}
+}
+
+dependencies {
+	implementation "maven.modrinth:midnightlib:${project.midnightlib_version}"
+	implementation 'com.google.code.gson:gson:2.10.1'
+}
+
+processResources {
+	def modVersion = project.version
+	def minecraftVersion = project.minecraft_version
+	def neoforgeVersion = project.neoforge_version
+	def javaVersion = project.java_version
+	def midnightLibMinVersion = project.midnightlib_min_version
+	inputs.properties 'version': modVersion, 'minecraft_version': minecraftVersion,
+			'neoforge_version': neoforgeVersion, 'java_version': javaVersion,
+			'midnightlib_min_version': midnightLibMinVersion
+
+	filesMatching('META-INF/neoforge.mods.toml') {
+		expand 'version': modVersion, 'minecraft_version': minecraftVersion,
+				'neoforge_version': neoforgeVersion, 'java_version': javaVersion,
+				'midnightlib_min_version': midnightLibMinVersion
+	}
+
+	filesMatching('travellers-handbook.mixins.json') {
+		expand 'java_version': javaVersion
+	}
+
+	exclude 'fabric.mod.json'
+	exclude '**/*.accesswidener'
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = Integer.parseInt(project.java_version as String)
+}
+
+tasks.withType(JavaExec).configureEach {
+	javaLauncher = javaToolchains.launcherFor {
+		languageVersion = JavaLanguageVersion.of(Integer.parseInt(project.java_version as String))
+	}
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.toVersion(project.java_version)
+	targetCompatibility = JavaVersion.toVersion(project.java_version)
+}
+
+jar {
+	from('LICENSE.md') {
+		rename { "${it}_travellers-handbook" }
+	}
+}
+
+publishing {
+	publications {
+		create('mavenJava', MavenPublication) {
+			from components.java
+		}
+	}
+}

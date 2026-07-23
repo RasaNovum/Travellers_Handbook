@@ -11,13 +11,14 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.rasanovum.travellershandbook.client.TravellersHandbookConfig;
 import net.rasanovum.travellershandbook.client.TravellersHandbookClient;
+import net.rasanovum.travellershandbook.TravellersHandbook;
 import net.rasanovum.travellershandbook.data.JournalEntry;
 
 import java.util.*;
 
 public class JournalScreen extends Screen {
     private static final ResourceLocation CUSTOM_BOOK_TEXTURE =
-            new ResourceLocation("travellers-handbook", "textures/gui/th_journal_background.png");
+            TravellersHandbook.id("textures/gui/th_journal_background.png");
 
     private final int imageWidth = 335;
     private final int imageHeight = 220;
@@ -118,7 +119,11 @@ public class JournalScreen extends Screen {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.rebuildVisibleRows();
-        this.renderBackground(guiGraphics);
+        //? if <1.21 {
+        /*this.renderBackground(guiGraphics);
+        *///?} else {
+        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        //?}
         int hoveredRowIndex = -1;
 
         RenderSystem.setShaderTexture(0, CUSTOM_BOOK_TEXTURE);
@@ -393,8 +398,14 @@ public class JournalScreen extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    @Override
+    //? if <1.21 {
+    /*@Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    *///?} else {
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        double delta = verticalAmount;
+    //?}
         int centerCrease = this.leftPos + 165; //135
 
         if (mouseX >= this.leftPos && mouseX < centerCrease) {
@@ -410,7 +421,11 @@ public class JournalScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseScrolled(mouseX, mouseY, delta);
+        //? if <1.21 {
+        /*return super.mouseScrolled(mouseX, mouseY, delta);
+        *///?} else {
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        //?}
     }
 
     @Override

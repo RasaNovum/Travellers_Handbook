@@ -1,0 +1,37 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="RSL-1.0"
+issueTrackerURL="https://github.com/RasaNovum/Travellers_Handbook/issues"
+
+[[mods]]
+modId="travellers_handbook"
+version="${version}"
+displayName="Traveller's Handbook"
+authors="Rasa Novum"
+description='''A mod that adds a journal filled with entries that the player can discover as they explore the world around them.'''
+displayURL="https://github.com/RasaNovum/Travellers_Handbook"
+logoFile="assets/travellers-handbook/icon.png"
+
+[[mixins]]
+config="travellers-handbook.mixins.json"
+
+[[dependencies.travellers_handbook]]
+modId="neoforge"
+type="required"
+versionRange="[${neoforge_version},)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.travellers_handbook]]
+modId="minecraft"
+type="required"
+versionRange="[${minecraft_version},)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.travellers_handbook]]
+modId="midnightlib"
+type="required"
+versionRange="[${midnightlib_min_version},)"
+ordering="NONE"
+side="BOTH"

@@ -6,10 +6,17 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.toasts.Toast;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 public class JournalToast implements Toast {
+    private static final ResourceLocation TEXTURE =
+            //? if <1.21 {
+            /*new ResourceLocation("textures/gui/toasts.png");
+            *///?} else {
+            ResourceLocation.withDefaultNamespace("textures/gui/toasts.png");
+            //?}
     private final Component title;
     private final Component description;
     private final ItemStack icon;
