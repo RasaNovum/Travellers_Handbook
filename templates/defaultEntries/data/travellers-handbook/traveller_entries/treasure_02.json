@@ -1,0 +1,6 @@
+{
+  "category": "Treasure",
+  "title": "Intricate Debris",
+  "description": "Found a strange artifact in the Nether, it seems like a collection of debris from something ancient. It doesn't seem to have any innate use, but I wonder if I could make an alloy with it? They seem to love gold down here, so maybe that's a good place to start...",
+  "advancement": "minecraft:nether/obtain_ancient_debris"
+}

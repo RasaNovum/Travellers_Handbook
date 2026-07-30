@@ -22,6 +22,7 @@ public final class TravellersHandbookClient {
 
     public static final List<JournalEntry> CLIENT_ENTRIES_CACHE = new ArrayList<>();
     public static final java.util.Set<String> UNREAD_ENTRIES_SET = new HashSet<>();
+    private static final java.util.Set<String> DISPLAYED_ADVANCEMENTS = new HashSet<>();
 
     private TravellersHandbookClient() {
     }
@@ -53,13 +54,21 @@ public final class TravellersHandbookClient {
     public static void receiveEntries(Minecraft client, List<JournalNetworkManager.SyncEntry> entries) {
         String lockedDescription = Component.translatable("gui.travellershandbook.locked_description").getString();
         List<JournalEntry> tempEntries = new ArrayList<>(entries.size());
+        java.util.Set<String> displayedAdvancements = new HashSet<>();
 
         for (JournalNetworkManager.SyncEntry entry : entries) {
             String description = entry.unlocked() ? entry.description() : lockedDescription;
             tempEntries.add(new JournalEntry(entry.category(), entry.title(), description, entry.advancementRequirement()));
+            if (entry.advancementHasDisplay()) {
+                displayedAdvancements.add(entry.advancementRequirement());
+            }
         }
 
-        client.execute(() -> applyEntries(tempEntries));
+        client.execute(() -> {
+            DISPLAYED_ADVANCEMENTS.clear();
+            DISPLAYED_ADVANCEMENTS.addAll(displayedAdvancements);
+            applyEntries(tempEntries);
+        });
     }
 
     public static void applyEntries(List<JournalEntry> entries) {
@@ -76,7 +85,10 @@ public final class TravellersHandbookClient {
                         UNREAD_ENTRIES_SET.add(newEntry.advancementRequirement());
                         JournalNotificationManager.notifyNewEntry(
                                 newEntry.title(),
-                                "gui.travellershandbook.toast.message"
+                                "gui.travellershandbook.toast.message",
+                                DISPLAYED_ADVANCEMENTS.contains(newEntry.advancementRequirement())
+                                        ? Math.max(0, TravellersHandbookConfig.entryToastDelayTicks)
+                                        : 0
                         );
                     }
                 }
@@ -89,8 +101,11 @@ public final class TravellersHandbookClient {
 
     public static void tick(Minecraft client) {
         if (client.player == null) {
+            JournalNotificationManager.clearPendingToasts();
             return;
         }
+
+        JournalNotificationManager.tick();
 
         int currentItemCount = 0;
         for (int i = 0; i < client.player.getInventory().getContainerSize(); i++) {

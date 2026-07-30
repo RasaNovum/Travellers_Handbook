@@ -18,7 +18,9 @@ import java.util.*;
 
 public class JournalScreen extends Screen {
     private static final ResourceLocation CUSTOM_BOOK_TEXTURE =
-            TravellersHandbook.id("textures/gui/th_journal_background.png");
+            TravellersHandbook.id("textures/gui/journal_background.png");
+    private static final ResourceLocation JOURNAL_OVERLAY_TEXTURE =
+            TravellersHandbook.id("textures/gui/journal_overlay.png");
 
     private final int imageWidth = 335;
     private final int imageHeight = 220;
@@ -36,7 +38,7 @@ public class JournalScreen extends Screen {
     private int selectedRowIndex = -1;
 
     private double leftPageScrollAmount = 0;
-    private final int maxVisibleRowsOnLeftPage = 13;
+    private final int maxVisibleRowsOnLeftPage = 14;
 
     private double rightPageScrollAmount = 0;
     private int totalWrappedLines = 0;
@@ -119,11 +121,6 @@ public class JournalScreen extends Screen {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.rebuildVisibleRows();
-        //? if <1.21 {
-        /*this.renderBackground(guiGraphics);
-        *///?} else {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
-        //?}
         int hoveredRowIndex = -1;
 
         RenderSystem.setShaderTexture(0, CUSTOM_BOOK_TEXTURE);
@@ -341,7 +338,22 @@ public class JournalScreen extends Screen {
             }
         }
 
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        renderJournalOverlay(guiGraphics);
+    }
+
+    private void renderJournalOverlay(GuiGraphics guiGraphics) {
+        guiGraphics.pose().pushPose();
+        guiGraphics.pose().translate(0.0F, 0.0F, 800.0F);
+        blitWithAlpha(guiGraphics, JOURNAL_OVERLAY_TEXTURE, this.leftPos, this.topPos);
+        guiGraphics.pose().popPose();
+    }
+
+    private void blitWithAlpha(GuiGraphics guiGraphics, ResourceLocation texture, int x, int y) {
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        guiGraphics.blit(texture, x, y, 0, 0, this.imageWidth, this.imageHeight, this.imageWidth, this.imageHeight);
+        guiGraphics.flush();
+        RenderSystem.disableBlend();
     }
 
     @Override

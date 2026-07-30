@@ -42,7 +42,8 @@ public final class JournalNetworkManager {
         for (JournalEntry entry : JournalDataLoader.SERVER_ENTRIES.values()) {
             String requirement = entry.advancementRequirement();
             boolean unlocked = requirement.isEmpty() || hasAdvancement(player, requirement);
-            entries.add(new SyncEntry(entry.category(), entry.title(), entry.description(), requirement, unlocked));
+            boolean advancementHasDisplay = !requirement.isEmpty() && advancementHasDisplay(player, requirement);
+            entries.add(new SyncEntry(entry.category(), entry.title(), entry.description(), requirement, unlocked, advancementHasDisplay));
         }
 
         return entries;
@@ -57,6 +58,7 @@ public final class JournalNetworkManager {
             buffer.writeUtf(entry.title());
             buffer.writeUtf(entry.description());
             buffer.writeUtf(entry.advancementRequirement());
+            buffer.writeBoolean(entry.advancementHasDisplay());
         }
     }
 
@@ -70,7 +72,8 @@ public final class JournalNetworkManager {
             String title = buffer.readUtf();
             String description = buffer.readUtf();
             String advancementRequirement = buffer.readUtf();
-            entries.add(new SyncEntry(category, title, description, advancementRequirement, unlocked));
+            boolean advancementHasDisplay = buffer.readBoolean();
+            entries.add(new SyncEntry(category, title, description, advancementRequirement, unlocked, advancementHasDisplay));
         }
 
         return entries;
@@ -91,8 +94,23 @@ public final class JournalNetworkManager {
         //?}
     }
 
+    private static boolean advancementHasDisplay(ServerPlayer player, String advancementId) {
+        if (player.getServer() == null) {
+            return false;
+        }
+
+        ResourceLocation id = TravellersHandbook.parseId(advancementId);
+        //? if <1.21 {
+        /*Advancement advancement = player.getServer().getAdvancements().getAdvancement(id);
+        return advancement != null && advancement.getDisplay() != null;
+        *///?} else {
+        AdvancementHolder advancement = player.getServer().getAdvancements().get(id);
+        return advancement != null && advancement.value().display().isPresent();
+        //?}
+    }
+
     public record SyncEntry(String category, String title, String description,
-                            String advancementRequirement, boolean unlocked) {
+                            String advancementRequirement, boolean unlocked, boolean advancementHasDisplay) {
     }
 
     @FunctionalInterface
