@@ -1,6 +1,5 @@
 package net.rasanovum.travellershandbook.client.toast;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.toasts.Toast;
@@ -15,7 +14,7 @@ public class JournalToast implements Toast {
             //? if <1.21 {
             /*new ResourceLocation("textures/gui/toasts.png");
             *///?} else {
-            ResourceLocation.withDefaultNamespace("textures/gui/toasts.png");
+            ResourceLocation.withDefaultNamespace("toast/advancement");
             //?}
     private final Component title;
     private final Component description;
@@ -41,10 +40,8 @@ public class JournalToast implements Toast {
 
     @Override
     public Visibility render(GuiGraphics guiGraphics, ToastComponent toastComponent, long timeSinceShow) {
-        RenderSystem.setShaderTexture(0, TEXTURE);
-        Font font = toastComponent.getMinecraft().font;
-
-        int leftBorder = 4;
+        //? if <1.21 {
+        /*int leftBorder = 4;
         int rightBorder = 4;
         int vanillaWidth = 160;
         int toastHeight = this.height();
@@ -55,12 +52,15 @@ public class JournalToast implements Toast {
         guiGraphics.blit(TEXTURE, leftBorder, 0, middleWidth, toastHeight, leftBorder, 0, vanillaWidth - leftBorder - rightBorder, toastHeight, 256, 256);
 
         guiGraphics.blit(TEXTURE, this.width() - rightBorder, 0, vanillaWidth - rightBorder, 0, rightBorder, toastHeight);
+        *///?} else {
+        guiGraphics.blitSprite(TEXTURE, 0, 0, this.width(), this.height());
+        //?}
 
         guiGraphics.drawString(toastComponent.getMinecraft().font, this.title, 30, 7, 0xFF55FF55, false);
         guiGraphics.drawString(toastComponent.getMinecraft().font, this.description, 30, 18, 0xFFFFFFFF, false);
 
         guiGraphics.renderFakeItem(this.icon, 8, 8);
 
-        return timeSinceShow >= 9000L ? Visibility.HIDE : Visibility.SHOW;
+        return timeSinceShow >= 10000L ? Visibility.HIDE : Visibility.SHOW;
     }
 }

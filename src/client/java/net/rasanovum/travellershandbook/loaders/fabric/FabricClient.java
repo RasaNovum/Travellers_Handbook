@@ -9,7 +9,6 @@ import net.rasanovum.travellershandbook.client.TravellersHandbookClient;
 public final class FabricClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        TravellersHandbookClient.initialize();
         TravellersHandbookClient.setOpenJournalKey(
                 KeyBindingHelper.registerKeyBinding(TravellersHandbookClient.createOpenJournalKey()));
 

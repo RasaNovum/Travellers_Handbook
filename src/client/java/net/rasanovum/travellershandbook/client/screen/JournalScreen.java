@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
-import net.rasanovum.travellershandbook.client.TravellersHandbookConfig;
+import net.rasanovum.travellershandbook.TravellersHandbookConfig;
 import net.rasanovum.travellershandbook.client.TravellersHandbookClient;
 import net.rasanovum.travellershandbook.TravellersHandbook;
 import net.rasanovum.travellershandbook.data.JournalEntry;
@@ -29,6 +29,7 @@ public class JournalScreen extends Screen {
     private static final int MAX_RUNE_LINE_WIDTH = 94;
     private static final int MAX_TITLE_LINES = 2;
     private static final int RIGHT_PAGE_CONTENT_BOTTOM = 188;
+    private static final int TRAILING_SPACER_LINES = 1;
     private int leftPos;
     private int topPos;
 
@@ -155,7 +156,8 @@ public class JournalScreen extends Screen {
         if (visibleRows.isEmpty()) {
             guiGraphics.drawString(this.font, noEntries, leftPageX, leftPageY, 0xFF555555, false);
         } else {
-            int maxLeftScrollIndex = Math.max(0, visibleRows.size() - maxVisibleRowsOnLeftPage);
+            int leftScrollableRows = visibleRows.size() + TRAILING_SPACER_LINES;
+            int maxLeftScrollIndex = Math.max(0, leftScrollableRows - maxVisibleRowsOnLeftPage);
             if (this.leftPageScrollAmount > maxLeftScrollIndex) {
                 this.leftPageScrollAmount = maxLeftScrollIndex;
             }
@@ -230,12 +232,12 @@ public class JournalScreen extends Screen {
             }
 
             // left page scrollbar
-            if (visibleRows.size() > maxVisibleRowsOnLeftPage) {
+            if (leftScrollableRows > maxVisibleRowsOnLeftPage) {
                 int leftBarX = this.leftPos + 156; //126
                 int leftBarTrackY = this.topPos + 52; //32
                 int leftBarTrackHeight = maxVisibleRowsOnLeftPage * 10;
 
-                int thumbHeight = Math.max(8, (int) ((double) maxVisibleRowsOnLeftPage / visibleRows.size() * leftBarTrackHeight));
+                int thumbHeight = Math.max(8, (int) ((double) maxVisibleRowsOnLeftPage / leftScrollableRows * leftBarTrackHeight));
                 int thumbYOffset = (int) ((this.leftPageScrollAmount / maxLeftScrollIndex) * (leftBarTrackHeight - thumbHeight));
                 guiGraphics.fill(leftBarX, leftBarTrackY + thumbYOffset, leftBarX + 2, leftBarTrackY + thumbYOffset + thumbHeight, 0x88444444);
             }
@@ -285,7 +287,7 @@ public class JournalScreen extends Screen {
 
                 int dynamicWrapWidth = isRightPageLocked ? MAX_RUNE_LINE_WIDTH : MAX_PAGE_WIDTH;
                 List<FormattedCharSequence> lines = this.font.split(bodyText, dynamicWrapWidth);
-                this.totalWrappedLines = lines.size();
+                this.totalWrappedLines = lines.size() + TRAILING_SPACER_LINES;
                 this.maxVisibleLinesOnPage = Math.max(0, (this.topPos + RIGHT_PAGE_CONTENT_BOTTOM - rightPageY) / 9);
 
                 int maxRightScrollIndex = Math.max(0, this.totalWrappedLines - maxVisibleLinesOnPage);
@@ -296,7 +298,7 @@ public class JournalScreen extends Screen {
 
                 for (int i = 0; i < maxVisibleLinesOnPage; i++) {
                     int lineIndex = startLineOffset + i;
-                    if (lineIndex >= this.totalWrappedLines) break;
+                    if (lineIndex >= lines.size()) break;
 
                     int currentLineY = rightPageY + (i * 9);
                     if (isRightPageLocked) {
@@ -421,8 +423,9 @@ public class JournalScreen extends Screen {
         int centerCrease = this.leftPos + 165; //135
 
         if (mouseX >= this.leftPos && mouseX < centerCrease) {
-            if (visibleRows.size() > maxVisibleRowsOnLeftPage) {
-                int maxLeftScroll = visibleRows.size() - maxVisibleRowsOnLeftPage;
+            int leftScrollableRows = visibleRows.size() + TRAILING_SPACER_LINES;
+            if (leftScrollableRows > maxVisibleRowsOnLeftPage) {
+                int maxLeftScroll = leftScrollableRows - maxVisibleRowsOnLeftPage;
                 this.leftPageScrollAmount = Mth.clamp(this.leftPageScrollAmount - (delta * 1.5), 0, maxLeftScroll);
                 return true;
             }

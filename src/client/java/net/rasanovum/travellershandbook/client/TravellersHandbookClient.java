@@ -1,11 +1,11 @@
 package net.rasanovum.travellershandbook.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import eu.midnightdust.lib.config.MidnightConfig;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.rasanovum.travellershandbook.TravellersHandbookConfig;
 import net.rasanovum.travellershandbook.data.JournalEntry;
 import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
 import net.rasanovum.travellershandbook.client.hud.JournalTutorialOverlay;
@@ -18,20 +18,12 @@ import java.util.List;
 
 public final class TravellersHandbookClient {
     private static KeyMapping openJournalKey;
-    private static boolean initialized;
 
     public static final List<JournalEntry> CLIENT_ENTRIES_CACHE = new ArrayList<>();
     public static final java.util.Set<String> UNREAD_ENTRIES_SET = new HashSet<>();
     private static final java.util.Set<String> DISPLAYED_ADVANCEMENTS = new HashSet<>();
 
     private TravellersHandbookClient() {
-    }
-
-    public static void initialize() {
-        if (!initialized) {
-            MidnightConfig.init("travellers-handbook", TravellersHandbookConfig.class);
-            initialized = true;
-        }
     }
 
     public static KeyMapping createOpenJournalKey() {

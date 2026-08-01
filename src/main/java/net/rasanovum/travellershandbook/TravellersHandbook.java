@@ -1,5 +1,6 @@
 package net.rasanovum.travellershandbook;
 
+import eu.midnightdust.lib.config.MidnightConfig;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,7 @@ public final class TravellersHandbook {
     }
 
     public static void initialize() {
+        MidnightConfig.init(MOD_ID, TravellersHandbookConfig.class);
         LOGGER.info("I used to be a traveller like you, until I took a handbook to the knee.");
     }
 }

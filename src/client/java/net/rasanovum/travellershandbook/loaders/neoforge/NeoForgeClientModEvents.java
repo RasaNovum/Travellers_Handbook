@@ -14,7 +14,6 @@ public final class NeoForgeClientModEvents {
 
     @SubscribeEvent
     public static void registerKeyMappings(RegisterKeyMappingsEvent event) {
-        TravellersHandbookClient.initialize();
         KeyMapping key = TravellersHandbookClient.createOpenJournalKey();
         TravellersHandbookClient.setOpenJournalKey(key);
         event.register(key);

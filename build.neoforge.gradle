@@ -57,9 +57,19 @@ processResources {
 	def neoforgeVersion = project.neoforge_version
 	def javaVersion = project.java_version
 	def midnightLibMinVersion = project.midnightlib_min_version
+	def dataPackFormat = project.data_pack_format
 	inputs.properties 'version': modVersion, 'minecraft_version': minecraftVersion,
 			'neoforge_version': neoforgeVersion, 'java_version': javaVersion,
-			'midnightlib_min_version': midnightLibMinVersion
+			'midnightlib_min_version': midnightLibMinVersion, 'data_pack_format': dataPackFormat
+
+	from(rootProject.file('templates/defaultEntries')) {
+		into('datapacks/default_entries')
+		filesMatching('pack.mcmeta') {
+			filter { line ->
+				line.replace('"pack_format": 15', "\"pack_format\": ${dataPackFormat}")
+			}
+		}
+	}
 
 	filesMatching('META-INF/neoforge.mods.toml') {
 		expand 'version': modVersion, 'minecraft_version': minecraftVersion,
