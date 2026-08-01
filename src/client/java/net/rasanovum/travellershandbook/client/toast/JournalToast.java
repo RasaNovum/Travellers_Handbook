@@ -61,6 +61,6 @@ public class JournalToast implements Toast {
 
         guiGraphics.renderFakeItem(this.icon, 8, 8);
 
-        return timeSinceShow >= 5000L ? Visibility.HIDE : Visibility.SHOW;
+        return timeSinceShow >= 9000L ? Visibility.HIDE : Visibility.SHOW;
     }
 }
