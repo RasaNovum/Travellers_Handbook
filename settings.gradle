@@ -4,10 +4,36 @@ pluginManagement {
 			name = 'Fabric'
 			url = 'https://maven.fabricmc.net/'
 		}
+		maven {
+			name = 'KikuGie Releases'
+			url = 'https://maven.kikugie.dev/releases'
+		}
+		maven {
+			name = 'NeoForged'
+			url = 'https://maven.neoforged.net/releases/'
+		}
 		mavenCentral()
 		gradlePluginPortal()
 	}
 }
 
-// Should match your modid
+plugins {
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+	id 'dev.kikugie.stonecutter' version '0.7.10'
+	id 'net.neoforged.moddev' version '2.0.102' apply false
+}
+
+stonecutter {
+	kotlinController = false
+	centralScript = 'build.gradle'
+
+	create(rootProject) {
+		version('1.20.1-fabric', '1.20.1')
+		version('1.21.1-fabric', '1.21.1')
+		version('1.21.1-neoforge', '1.21.1').buildscript = 'build.neoforge.gradle'
+
+		vcsVersion = '1.20.1-fabric'
+	}
+}
+
 rootProject.name = 'travellers-handbook'

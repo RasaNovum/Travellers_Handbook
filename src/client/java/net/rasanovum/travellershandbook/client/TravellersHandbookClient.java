@@ -1,116 +1,125 @@
 package net.rasanovum.travellershandbook.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import eu.midnightdust.lib.config.MidnightConfig;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.rasanovum.travellershandbook.client.hud.JournalTutorialOverlay;
-import net.rasanovum.travellershandbook.client.screen.JournalScreen;
+import net.rasanovum.travellershandbook.TravellersHandbookConfig;
 import net.rasanovum.travellershandbook.data.JournalEntry;
 import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
+import net.rasanovum.travellershandbook.client.hud.JournalTutorialOverlay;
+import net.rasanovum.travellershandbook.client.screen.JournalScreen;
 import org.lwjgl.glfw.GLFW;
+
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
-public class TravellersHandbookClient implements ClientModInitializer {
+public final class TravellersHandbookClient {
+    private static KeyMapping openJournalKey;
 
-	private static KeyMapping openJournalKey;
-	public static KeyMapping getOpenJournalKey() {
-		return openJournalKey;
-	}
-	public static final java.util.List<JournalEntry> CLIENT_ENTRIES_CACHE = new java.util.ArrayList<>();
-	public static final java.util.Set<String> UNREAD_ENTRIES_SET = new java.util.HashSet<>();
+    public static final List<JournalEntry> CLIENT_ENTRIES_CACHE = new ArrayList<>();
+    public static final java.util.Set<String> UNREAD_ENTRIES_SET = new HashSet<>();
+    private static final java.util.Set<String> DISPLAYED_ADVANCEMENTS = new HashSet<>();
 
-	@Override
-	public void onInitializeClient() {
-		MidnightConfig.init("travellers-handbook", TravellersHandbookConfig.class);
+    private TravellersHandbookClient() {
+    }
 
-		net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT.register(JournalTutorialOverlay::render);
+    public static KeyMapping createOpenJournalKey() {
+        return new KeyMapping(
+                "key.traveller_handbook.open_journal",
+                InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_N,
+                "key.categories.traveller_handbook"
+        );
+    }
 
-		ClientPlayNetworking.registerGlobalReceiver(JournalNetworkManager.SYNC_PACKET_ID, (client, handler, buf, responseSender) -> {
-			int size = buf.readInt();
-			List<JournalEntry> tempEntries = new ArrayList<>();
+    public static void setOpenJournalKey(KeyMapping key) {
+        openJournalKey = key;
+    }
 
-			for (int i = 0; i < size; i++) {
-				buf.readResourceLocation();
-				String cat = buf.readUtf();
-				boolean isUnlocked = buf.readBoolean();
-				String title = buf.readUtf();
-				String desc = buf.readUtf();
-				String adv = buf.readUtf();
+    public static KeyMapping getOpenJournalKey() {
+        return openJournalKey;
+    }
 
-				if (!isUnlocked) {
-					desc = Component.translatable("gui.travellershandbook.locked_description").getString();
-				}
+    public static void receiveEntries(Minecraft client, List<JournalNetworkManager.SyncEntry> entries) {
+        String lockedDescription = Component.translatable("gui.travellershandbook.locked_description").getString();
+        List<JournalEntry> tempEntries = new ArrayList<>(entries.size());
+        java.util.Set<String> displayedAdvancements = new HashSet<>();
 
-				tempEntries.add(new JournalEntry(cat, title, desc, adv));
-			}
+        for (JournalNetworkManager.SyncEntry entry : entries) {
+            String description = entry.unlocked() ? entry.description() : lockedDescription;
+            tempEntries.add(new JournalEntry(entry.category(), entry.title(), description, entry.advancementRequirement()));
+            if (entry.advancementHasDisplay()) {
+                displayedAdvancements.add(entry.advancementRequirement());
+            }
+        }
 
-			client.execute(() -> {
-				if (client.player != null && !CLIENT_ENTRIES_CACHE.isEmpty()) {
-					String lockedDescMarker = Component.translatable("gui.travellershandbook.locked_description").getString();
-					for (JournalEntry newEntry : tempEntries) {
-						boolean isNewEntryLocked = newEntry.description().equals(lockedDescMarker);
-						if (!isNewEntryLocked) {
+        client.execute(() -> {
+            DISPLAYED_ADVANCEMENTS.clear();
+            DISPLAYED_ADVANCEMENTS.addAll(displayedAdvancements);
+            applyEntries(tempEntries);
+        });
+    }
 
-							boolean wasPreviouslyLocked = CLIENT_ENTRIES_CACHE.stream()
-									.anyMatch(cachedEntry -> cachedEntry.advancementRequirement().equals(newEntry.advancementRequirement())
-											&& cachedEntry.description().equals(lockedDescMarker));
+    public static void applyEntries(List<JournalEntry> entries) {
+        String lockedDescription = Component.translatable("gui.travellershandbook.locked_description").getString();
 
-							if (wasPreviouslyLocked) {
-								UNREAD_ENTRIES_SET.add(newEntry.advancementRequirement());
-								JournalNotificationManager.notifyNewEntry(
-										newEntry.title(),
-										"gui.travellershandbook.toast.message"
-								);
-							}
-						}
-					}
-				}
+        if (!CLIENT_ENTRIES_CACHE.isEmpty()) {
+            for (JournalEntry newEntry : entries) {
+                if (!newEntry.description().equals(lockedDescription)) {
+                    boolean wasPreviouslyLocked = CLIENT_ENTRIES_CACHE.stream()
+                            .anyMatch(cachedEntry -> cachedEntry.advancementRequirement().equals(newEntry.advancementRequirement())
+                                    && cachedEntry.description().equals(lockedDescription));
 
-				CLIENT_ENTRIES_CACHE.clear();
-				CLIENT_ENTRIES_CACHE.addAll(tempEntries);
-			});
-		});
+                    if (wasPreviouslyLocked) {
+                        UNREAD_ENTRIES_SET.add(newEntry.advancementRequirement());
+                        JournalNotificationManager.notifyNewEntry(
+                                newEntry.title(),
+                                "gui.travellershandbook.toast.message",
+                                DISPLAYED_ADVANCEMENTS.contains(newEntry.advancementRequirement())
+                                        ? Math.max(0, TravellersHandbookConfig.entryToastDelayTicks)
+                                        : 0
+                        );
+                    }
+                }
+            }
+        }
 
-		openJournalKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-				"key.travellers-handbook.open_journal",
-				InputConstants.Type.KEYSYM,
-				GLFW.GLFW_KEY_N,
-				"key.categories.travellers-handbook"
-		));
+        CLIENT_ENTRIES_CACHE.clear();
+        CLIENT_ENTRIES_CACHE.addAll(entries);
+    }
 
-		ClientTickEvents.END_CLIENT_TICK.register(client -> {
-			if (client.player != null) {
-				int currentItemCount = 0;
-				for (int i = 0; i < client.player.getInventory().getContainerSize(); i++) {
-					ItemStack stack = client.player.getInventory().getItem(i);
-					if (!stack.isEmpty()) {
-						currentItemCount += stack.getCount();
-					}
-				}
+    public static void tick(Minecraft client) {
+        if (client.player == null) {
+            JournalNotificationManager.clearPendingToasts();
+            return;
+        }
 
-				if (currentItemCount > JournalTutorialOverlay.lastInventoryCount) {
-					JournalTutorialOverlay.lastPickupTime = client.player.tickCount;
-				}
+        JournalNotificationManager.tick();
 
-				while (openJournalKey.consumeClick()) {
-					client.player.playSound(
-							net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN,
-							1.0F,
-							1.0F
-					);
+        int currentItemCount = 0;
+        for (int i = 0; i < client.player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = client.player.getInventory().getItem(i);
+            if (!stack.isEmpty()) {
+                currentItemCount += stack.getCount();
+            }
+        }
 
-					JournalTutorialOverlay.HAS_OPENED_JOURNAL = true;
-					Minecraft.getInstance().setScreen(new JournalScreen());
-				}
-			}
-		});
-	}
+        if (currentItemCount > JournalTutorialOverlay.lastInventoryCount) {
+            JournalTutorialOverlay.lastPickupTime = client.player.tickCount;
+        }
+        JournalTutorialOverlay.lastInventoryCount = currentItemCount;
+
+        while (openJournalKey != null && openJournalKey.consumeClick()) {
+            client.player.playSound(net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, 1.0F, 1.0F);
+            JournalTutorialOverlay.HAS_OPENED_JOURNAL = true;
+            client.setScreen(new JournalScreen());
+        }
+    }
+
+    public static void renderHud(net.minecraft.client.gui.GuiGraphics guiGraphics, float partialTick) {
+        JournalTutorialOverlay.render(guiGraphics, partialTick);
+    }
 }

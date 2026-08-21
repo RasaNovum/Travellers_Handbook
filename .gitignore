@@ -32,6 +32,9 @@ bin/
 # fabric
 
 run/
+/versions/*/.gradle/
+/versions/*/build/
+/versions/*/run/
 
 # java
 

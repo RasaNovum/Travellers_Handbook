@@ -1,0 +1,21 @@
+rootREADME: true
+summary: Traveller's Handbook adds a Journal GUI filled with entries about the surrounding world. Players unlock these entries as they discover new things about the world around them.
+platforms:
+  primary: modrinth
+  modrinth:
+    id: travellers-handbook
+  curseforge:
+    id: travellers-handbook
+gameVersions:
+  - "1.20.1"
+  - "1.21.1"
+loaders:
+  - fabric
+  - neoforge
+type: minecraft
+category: mod
+modId: travellers_handbook
+licenses:
+  project:
+    id: RSL
+    url: https://github.com/RasaNovum/Via_Romana/blob/main/LICENSE.md

@@ -16,20 +16,20 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"net.rasanovum.travellershandbook.TravellersHandbook"
+			"net.rasanovum.travellershandbook.loaders.fabric.FabricMain"
 		],
 		"client": [
-			"net.rasanovum.travellershandbook.client.TravellersHandbookClient"
+			"net.rasanovum.travellershandbook.loaders.fabric.FabricClient"
 		]
 	},
 	"mixins": [
 		"travellers-handbook.mixins.json"
 	],
 	"depends": {
-		"fabricloader": ">=0.17.2",
-		"minecraft": "~1.20.1",
-		"java": ">=17",
+		"fabricloader": ">=${fabric_loader_min_version}",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=${java_version}",
 		"fabric-api": "*",
-		"midnightlib": ">=1.9.3"
+		"midnightlib": ">=${midnightlib_min_version}"
 	}
 }

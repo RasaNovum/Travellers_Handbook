@@ -9,5 +9,11 @@
   "gui.travellershandbook.help.expanded": "Click the category to collapse it.",
   "gui.travellershandbook.help.collapsed": "Click the category to expand it.",
   "gui.travellershandbook.toast.title": "Journal updated",
-  "gui.travellershandbook.toast.message": "A new entry has been made."
+  "gui.travellershandbook.toast.message": "A new entry has been made.",
+
+  "pack.travellers-handbook.default_entries": "Traveller's Handbook Default Entries",
+  "travellers-handbook.midnightconfig.category.entries": "Journal Entries",
+  "travellers-handbook.midnightconfig.loadDefaultEntries": "Load Default Entries",
+  "travellers-handbook.midnightconfig.category.notifications": "Notifications",
+  "travellers-handbook.midnightconfig.entryToastDelayTicks": "Entry Toast Delay Time (Ticks)"
 }

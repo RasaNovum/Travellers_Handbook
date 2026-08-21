@@ -1,0 +1,6 @@
+{
+  "category": "Treasure",
+  "title": "Diamonds!",
+  "description": "I found a diamond! I had to dig deeper and deeper until I found them... hopefully nothing bad comes from digging too deep down!",
+  "advancement": "minecraft:story/mine_diamond"
+}
