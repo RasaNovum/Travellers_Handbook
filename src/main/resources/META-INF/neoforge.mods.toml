@@ -10,7 +10,7 @@ displayName="Traveller's Handbook"
 authors="Rasa Novum"
 description='''A mod that adds a journal filled with entries that the player can discover as they explore the world around them.'''
 displayURL="https://github.com/RasaNovum/Travellers_Handbook"
-logoFile="assets/travellers-handbook/icon.png"
+logoFile="assets/travellers-handbook/TH_Icon_Logo_8x.png"
 
 [[mixins]]
 config="travellers-handbook.mixins.json"

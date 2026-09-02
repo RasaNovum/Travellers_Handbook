@@ -6,8 +6,7 @@ import net.minecraft.client.gui.components.toasts.Toast;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.rasanovum.travellershandbook.TravellersHandbook;
 
 public class JournalToast implements Toast {
     private static final ResourceLocation TEXTURE =
@@ -16,15 +15,15 @@ public class JournalToast implements Toast {
             *///?} else {
             ResourceLocation.withDefaultNamespace("toast/advancement");
             //?}
+    private static final ResourceLocation ICON_TEXTURE =
+            TravellersHandbook.id("textures/item/th_book_item_1x.png");
     private final Component title;
     private final Component description;
-    private final ItemStack icon;
     private final int calculatedWidth;
 
     public JournalToast(Component title, Component description, Font font) {
         this.title = title;
         this.description = description;
-        this.icon = new ItemStack(Items.WRITABLE_BOOK);
 
         int titleWidth = font.width(title);
         int descWidth = font.width(description);
@@ -59,7 +58,7 @@ public class JournalToast implements Toast {
         guiGraphics.drawString(toastComponent.getMinecraft().font, this.title, 30, 7, 0xFF55FF55, false);
         guiGraphics.drawString(toastComponent.getMinecraft().font, this.description, 30, 18, 0xFFFFFFFF, false);
 
-        guiGraphics.renderFakeItem(this.icon, 8, 8);
+        guiGraphics.blit(ICON_TEXTURE, 8, 8, 0, 0, 16, 16, 16, 16);
 
         return timeSinceShow >= 15000L ? Visibility.HIDE : Visibility.SHOW;
     }

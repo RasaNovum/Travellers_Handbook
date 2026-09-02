@@ -12,7 +12,7 @@
 		"sources": "https://github.com/RasaNovum/Travellers_Handbook"
 	},
 	"license": "RSL-1.0",
-	"icon": "assets/travellers-handbook/icon.png",
+	"icon": "assets/travellers-handbook/TH_Icon_Logo_8x.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
