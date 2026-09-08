@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.rasanovum.travellershandbook.TravellersHandbookConfig;
+import net.rasanovum.travellershandbook.client.toast.JournalNotificationManager;
 import net.rasanovum.travellershandbook.data.JournalEntry;
 import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
 import net.rasanovum.travellershandbook.client.hud.JournalTutorialOverlay;
@@ -18,6 +19,8 @@ import java.util.List;
 
 public final class TravellersHandbookClient {
     private static KeyMapping openJournalKey;
+    private static Runnable journalOpenedSender = () -> {
+    };
 
     public static final List<JournalEntry> CLIENT_ENTRIES_CACHE = new ArrayList<>();
     public static final java.util.Set<String> UNREAD_ENTRIES_SET = new HashSet<>();
@@ -39,11 +42,19 @@ public final class TravellersHandbookClient {
         openJournalKey = key;
     }
 
+    public static void setJournalOpenedSender(Runnable sender) {
+        journalOpenedSender = sender;
+    }
+
     public static KeyMapping getOpenJournalKey() {
         return openJournalKey;
     }
 
-    public static void receiveEntries(Minecraft client, List<JournalNetworkManager.SyncEntry> entries) {
+    public static void receiveEntries(
+            Minecraft client,
+            List<JournalNetworkManager.SyncEntry> entries,
+            boolean journalOpened
+    ) {
         String lockedDescription = Component.translatable("gui.travellershandbook.locked_description").getString();
         List<JournalEntry> tempEntries = new ArrayList<>(entries.size());
         java.util.Set<String> displayedAdvancements = new HashSet<>();
@@ -59,6 +70,7 @@ public final class TravellersHandbookClient {
         client.execute(() -> {
             DISPLAYED_ADVANCEMENTS.clear();
             DISPLAYED_ADVANCEMENTS.addAll(displayedAdvancements);
+            JournalTutorialOverlay.setJournalOpened(journalOpened);
             applyEntries(tempEntries);
         });
     }
@@ -94,6 +106,7 @@ public final class TravellersHandbookClient {
     public static void tick(Minecraft client) {
         if (client.player == null) {
             JournalNotificationManager.clearPendingToasts();
+            JournalTutorialOverlay.resetForWorld();
             return;
         }
 
@@ -114,7 +127,8 @@ public final class TravellersHandbookClient {
 
         while (openJournalKey != null && openJournalKey.consumeClick()) {
             client.player.playSound(net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, 1.0F, 1.0F);
-            JournalTutorialOverlay.HAS_OPENED_JOURNAL = true;
+            JournalTutorialOverlay.markJournalOpened();
+            journalOpenedSender.run();
             client.setScreen(new JournalScreen());
         }
     }

@@ -37,7 +37,10 @@ public final class FabricMain implements ModInitializer {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 JournalNetworkManager.syncToPlayer(handler.player));
         ServerPlayerEvents.COPY_FROM.register((oldPlayer, newPlayer, alive) ->
-                JournalNetworkManager.syncToPlayer(newPlayer));
+        {
+            JournalNetworkManager.copyJournalState(oldPlayer, newPlayer);
+            JournalNetworkManager.syncToPlayer(newPlayer);
+        });
     }
 
     private static void registerDefaultEntriesPack() {

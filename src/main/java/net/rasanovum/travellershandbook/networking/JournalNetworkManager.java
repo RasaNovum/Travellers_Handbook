@@ -3,6 +3,7 @@ package net.rasanovum.travellershandbook.networking;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.rasanovum.travellershandbook.TravellersHandbook;
 import net.rasanovum.travellershandbook.data.JournalDataLoader;
 import net.rasanovum.travellershandbook.data.JournalEntry;
@@ -18,6 +19,8 @@ import net.minecraft.advancements.AdvancementHolder;
 
 public final class JournalNetworkManager {
     public static final ResourceLocation SYNC_PACKET_ID = TravellersHandbook.id("sync_entries");
+    public static final ResourceLocation JOURNAL_OPENED_PACKET_ID = TravellersHandbook.id("journal_opened");
+    private static final String JOURNAL_OPENED_TAG = "travellers_handbook_journal_opened";
 
     private static NetworkBridge networkBridge;
 
@@ -33,7 +36,21 @@ public final class JournalNetworkManager {
             return;
         }
 
-        networkBridge.sendSync(player, entriesFor(player));
+        networkBridge.sendSync(player, entriesFor(player), hasJournalBeenOpened(player));
+    }
+
+    public static void markJournalOpened(ServerPlayer player) {
+        player.addTag(JOURNAL_OPENED_TAG);
+    }
+
+    public static void copyJournalState(Player original, ServerPlayer replacement) {
+        if (hasJournalBeenOpened(original)) {
+            markJournalOpened(replacement);
+        }
+    }
+
+    private static boolean hasJournalBeenOpened(Player player) {
+        return player.getTags().contains(JOURNAL_OPENED_TAG);
     }
 
     public static List<SyncEntry> entriesFor(ServerPlayer player) {
@@ -49,7 +66,8 @@ public final class JournalNetworkManager {
         return entries;
     }
 
-    public static void writeSync(FriendlyByteBuf buffer, List<SyncEntry> entries) {
+    public static void writeSync(FriendlyByteBuf buffer, List<SyncEntry> entries, boolean journalOpened) {
+        buffer.writeBoolean(journalOpened);
         buffer.writeInt(entries.size());
 
         for (SyncEntry entry : entries) {
@@ -62,7 +80,8 @@ public final class JournalNetworkManager {
         }
     }
 
-    public static List<SyncEntry> readSync(FriendlyByteBuf buffer) {
+    public static SyncData readSync(FriendlyByteBuf buffer) {
+        boolean journalOpened = buffer.readBoolean();
         int size = buffer.readInt();
         List<SyncEntry> entries = new ArrayList<>(size);
 
@@ -76,7 +95,7 @@ public final class JournalNetworkManager {
             entries.add(new SyncEntry(category, title, description, advancementRequirement, unlocked, advancementHasDisplay));
         }
 
-        return entries;
+        return new SyncData(entries, journalOpened);
     }
 
     private static boolean hasAdvancement(ServerPlayer player, String advancementId) {
@@ -113,8 +132,11 @@ public final class JournalNetworkManager {
                             String advancementRequirement, boolean unlocked, boolean advancementHasDisplay) {
     }
 
+    public record SyncData(List<SyncEntry> entries, boolean journalOpened) {
+    }
+
     @FunctionalInterface
     public interface NetworkBridge {
-        void sendSync(ServerPlayer player, List<SyncEntry> entries);
+        void sendSync(ServerPlayer player, List<SyncEntry> entries, boolean journalOpened);
     }
 }

@@ -21,15 +21,28 @@ public final class FabricNetwork {
         }
 
         //? if <1.21 {
-        /*JournalNetworkManager.initialize((player, entries) -> {
+        /*JournalNetworkManager.initialize((player, entries, journalOpened) -> {
             var buffer = PacketByteBufs.create();
-            JournalNetworkManager.writeSync(buffer, entries);
+            JournalNetworkManager.writeSync(buffer, entries, journalOpened);
             ServerPlayNetworking.send(player, JournalNetworkManager.SYNC_PACKET_ID, buffer);
         });
+        ServerPlayNetworking.registerGlobalReceiver(
+                JournalNetworkManager.JOURNAL_OPENED_PACKET_ID,
+                (server, player, handler, buffer, responseSender) ->
+                        server.execute(() -> JournalNetworkManager.markJournalOpened(player))
+        );
         *///?} else {
         PayloadTypeRegistry.playS2C().register(FabricSyncPayload.TYPE, FabricSyncPayload.STREAM_CODEC);
-        JournalNetworkManager.initialize((player, entries) ->
-                ServerPlayNetworking.send(player, new FabricSyncPayload(entries)));
+        PayloadTypeRegistry.playC2S().register(
+                FabricJournalOpenedPayload.TYPE,
+                FabricJournalOpenedPayload.STREAM_CODEC
+        );
+        JournalNetworkManager.initialize((player, entries, journalOpened) ->
+                ServerPlayNetworking.send(player, new FabricSyncPayload(entries, journalOpened)));
+        ServerPlayNetworking.registerGlobalReceiver(
+                FabricJournalOpenedPayload.TYPE,
+                (payload, context) -> JournalNetworkManager.markJournalOpened(context.player())
+        );
         //?}
 
         initialized = true;

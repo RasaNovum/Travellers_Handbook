@@ -5,25 +5,43 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.resources.ResourceLocation;
+import net.rasanovum.travellershandbook.TravellersHandbook;
 import net.rasanovum.travellershandbook.client.TravellersHandbookClient;
 import net.rasanovum.travellershandbook.client.screen.JournalScreen;
 
 public class JournalTutorialOverlay {
-    public static boolean HAS_OPENED_JOURNAL = false;
-    private static final ItemStack ICON = new ItemStack(Items.WRITABLE_BOOK);
+    private static final ResourceLocation ICON_TEXTURE =
+            TravellersHandbook.id("textures/item/th_book_item_1x.png");
+    private static boolean hasOpenedJournal;
+    private static boolean journalStateLoaded;
 
     public static int lastPickupTime = -100;
     public static int lastInventoryCount = 0;
 
+    public static void setJournalOpened(boolean opened) {
+        hasOpenedJournal = opened;
+        journalStateLoaded = true;
+    }
+
+    public static void markJournalOpened() {
+        setJournalOpened(true);
+    }
+
+    public static void resetForWorld() {
+        hasOpenedJournal = false;
+        journalStateLoaded = false;
+        lastPickupTime = -100;
+        lastInventoryCount = 0;
+    }
+
     public static void render(GuiGraphics guiGraphics, float partialTick) {
         Minecraft mc = Minecraft.getInstance();
 
-        if (mc.player == null || mc.options.hideGui || HAS_OPENED_JOURNAL) return;
+        if (mc.player == null || mc.options.hideGui || !journalStateLoaded || hasOpenedJournal) return;
         if (mc.screen != null) {
             if (mc.screen instanceof JournalScreen) {
-                HAS_OPENED_JOURNAL = true;
+                markJournalOpened();
             }
             return;
         }
@@ -60,7 +78,7 @@ public class JournalTutorialOverlay {
         RenderSystem.enableBlend();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, alpha);
 
-        guiGraphics.renderFakeItem(ICON, xPos, yPos);
+        guiGraphics.blit(ICON_TEXTURE, xPos, yPos, 0, 0, 16, 16, 16, 16);
 
         // text prompt with matching opacity levels
         int textAlphaColor = ((int)(alpha * 255) << 24) | 0xFFFFFF;

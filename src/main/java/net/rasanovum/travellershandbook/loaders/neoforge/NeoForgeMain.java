@@ -78,6 +78,7 @@ public final class NeoForgeMain {
 
     private static void onPlayerClone(PlayerEvent.Clone event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            JournalNetworkManager.copyJournalState(event.getOriginal(), player);
             JournalNetworkManager.syncToPlayer(player);
         }
     }

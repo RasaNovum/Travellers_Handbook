@@ -12,8 +12,8 @@
   "gui.travellershandbook.toast.message": "A new entry has been made.",
 
   "pack.travellers-handbook.default_entries": "Traveller's Handbook Default Entries",
-  "travellers-handbook.midnightconfig.category.entries": "Journal Entries",
-  "travellers-handbook.midnightconfig.loadDefaultEntries": "Load Default Entries",
-  "travellers-handbook.midnightconfig.category.notifications": "Notifications",
-  "travellers-handbook.midnightconfig.entryToastDelayTicks": "Entry Toast Delay Time (Ticks)"
+  "travellers_handbook.midnightconfig.loadDefaultEntries": "Load default entries including with the mod",
+  "travellers_handbook.midnightconfig.reduceRuneMotion": "Disable text animation for obfuscated entries",
+  "travellers_handbook.midnightconfig.entryToastDelayTicks": "Delay to display toast after world entry (Ticks)",
+  "travellers_handbook.midnightconfig.title": "Traveller's Handbook Config"
 }

@@ -4,6 +4,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.client.KeyMapping;
 import net.rasanovum.travellershandbook.client.TravellersHandbookClient;
 
@@ -16,6 +17,9 @@ public final class NeoForgeClientModEvents {
     public static void registerKeyMappings(RegisterKeyMappingsEvent event) {
         KeyMapping key = TravellersHandbookClient.createOpenJournalKey();
         TravellersHandbookClient.setOpenJournalKey(key);
+        TravellersHandbookClient.setJournalOpenedSender(
+                () -> PacketDistributor.sendToServer(new NeoForgeJournalOpenedPayload())
+        );
         event.register(key);
     }
 }

@@ -8,12 +8,15 @@ import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
 
 import java.util.List;
 
-public record NeoForgeSyncPayload(List<JournalNetworkManager.SyncEntry> entries) implements CustomPacketPayload {
+public record NeoForgeSyncPayload(List<JournalNetworkManager.SyncEntry> entries, boolean journalOpened) implements CustomPacketPayload {
     public static final Type<NeoForgeSyncPayload> TYPE = new Type<>(TravellersHandbook.id("sync_entries"));
     public static final StreamCodec<RegistryFriendlyByteBuf, NeoForgeSyncPayload> STREAM_CODEC =
             StreamCodec.of(
-                    (buffer, payload) -> JournalNetworkManager.writeSync(buffer, payload.entries()),
-                    buffer -> new NeoForgeSyncPayload(JournalNetworkManager.readSync(buffer))
+                    (buffer, payload) -> JournalNetworkManager.writeSync(buffer, payload.entries(), payload.journalOpened()),
+                    buffer -> {
+                        JournalNetworkManager.SyncData syncData = JournalNetworkManager.readSync(buffer);
+                        return new NeoForgeSyncPayload(syncData.entries(), syncData.journalOpened());
+                    }
             );
 
     @Override

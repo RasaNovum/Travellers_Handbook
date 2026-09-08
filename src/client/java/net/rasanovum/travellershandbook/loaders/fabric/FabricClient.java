@@ -13,6 +13,7 @@ public final class FabricClient implements ClientModInitializer {
                 KeyBindingHelper.registerKeyBinding(TravellersHandbookClient.createOpenJournalKey()));
 
         FabricClientNetwork.registerReceiver();
+        TravellersHandbookClient.setJournalOpenedSender(FabricClientNetwork::sendJournalOpened);
         ClientTickEvents.END_CLIENT_TICK.register(TravellersHandbookClient::tick);
         //? if <1.21 {
         /*HudRenderCallback.EVENT.register(TravellersHandbookClient::renderHud);

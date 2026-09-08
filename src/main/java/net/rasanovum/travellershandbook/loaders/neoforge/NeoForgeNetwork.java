@@ -14,8 +14,8 @@ public final class NeoForgeNetwork {
 
     public static void initialize() {
         if (!initialized) {
-            JournalNetworkManager.initialize((player, entries) ->
-                    PacketDistributor.sendToPlayer(player, new NeoForgeSyncPayload(entries)));
+            JournalNetworkManager.initialize((player, entries, journalOpened) ->
+                    PacketDistributor.sendToPlayer(player, new NeoForgeSyncPayload(entries, journalOpened)));
             initialized = true;
         }
     }
@@ -25,7 +25,17 @@ public final class NeoForgeNetwork {
                 NeoForgeSyncPayload.TYPE,
                 NeoForgeSyncPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
-                        TravellersHandbookClient.receiveEntries(Minecraft.getInstance(), payload.entries()))
+                        TravellersHandbookClient.receiveEntries(
+                                Minecraft.getInstance(),
+                                payload.entries(),
+                                payload.journalOpened()))
+        );
+        event.registrar("1").playToServer(
+                NeoForgeJournalOpenedPayload.TYPE,
+                NeoForgeJournalOpenedPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        JournalNetworkManager.markJournalOpened(
+                                (net.minecraft.server.level.ServerPlayer) context.player()))
         );
     }
 }

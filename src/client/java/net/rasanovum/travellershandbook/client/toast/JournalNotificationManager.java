@@ -1,4 +1,4 @@
-package net.rasanovum.travellershandbook.client;
+package net.rasanovum.travellershandbook.client.toast;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -6,11 +6,9 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.rasanovum.travellershandbook.client.toast.JournalToast;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 
 public class JournalNotificationManager {
     private static final List<PendingToast> PENDING_TOASTS = new ArrayList<>();
@@ -20,34 +18,41 @@ public class JournalNotificationManager {
     }
 
     public static void notifyNewEntry(String titleKey, String descKey, int delayTicks) {
-        if (delayTicks > 0) {
-            PENDING_TOASTS.add(new PendingToast(titleKey, descKey, delayTicks));
-            return;
-        }
-
-        showToast(titleKey, descKey);
+        PENDING_TOASTS.add(new PendingToast(titleKey, descKey, Math.max(0, delayTicks)));
     }
 
     public static void tick() {
-        ListIterator<PendingToast> iterator = PENDING_TOASTS.listIterator();
-        while (iterator.hasNext()) {
-            PendingToast pendingToast = iterator.next();
+        for (int index = 0; index < PENDING_TOASTS.size(); index++) {
+            PendingToast pendingToast = PENDING_TOASTS.get(index);
             int remainingTicks = pendingToast.remainingTicks() - 1;
-            if (remainingTicks <= 0) {
+            PENDING_TOASTS.set(index, new PendingToast(
+                    pendingToast.titleKey(),
+                    pendingToast.descKey(),
+                    remainingTicks
+            ));
+        }
+
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || hasToasts(client)) {
+            return;
+        }
+
+        for (int index = 0; index < PENDING_TOASTS.size(); index++) {
+            PendingToast pendingToast = PENDING_TOASTS.get(index);
+            if (pendingToast.remainingTicks() <= 0) {
+                PENDING_TOASTS.remove(index);
                 showToast(pendingToast.titleKey(), pendingToast.descKey());
-                iterator.remove();
-            } else {
-                iterator.set(new PendingToast(
-                        pendingToast.titleKey(),
-                        pendingToast.descKey(),
-                        remainingTicks
-                ));
+                return;
             }
         }
     }
 
     public static void clearPendingToasts() {
         PENDING_TOASTS.clear();
+    }
+
+    private static boolean hasToasts(Minecraft client) {
+        return ((ToastComponentAccess) client.getToasts()).travellersHandbook$hasToasts();
     }
 
     private static void showToast(String titleKey, String descKey) {

@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"id": "travellers-handbook",
+	"id": "travellers_handbook",
 	"version": "${version}",
 	"name": "Traveller's Handbook",
 	"description": "A mod that adds a journal filled with entries that the player can discover as they explore the world around them.",
@@ -12,7 +12,7 @@
 		"sources": "https://github.com/RasaNovum/Travellers_Handbook"
 	},
 	"license": "RSL-1.0",
-	"icon": "assets/travellers-handbook/TH_Icon_Logo_8x.png",
+	"icon": "assets/travellers_handbook/TH_Icon_Logo_8x.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
@@ -23,7 +23,7 @@
 		]
 	},
 	"mixins": [
-		"travellers-handbook.mixins.json"
+		"travellers_handbook.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=${fabric_loader_min_version}",
