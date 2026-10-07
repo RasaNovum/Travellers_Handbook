@@ -10,6 +10,12 @@
   "gui.travellershandbook.help.collapsed": "Click the category to expand it.",
   "gui.travellershandbook.toast.title": "Journal updated",
   "gui.travellershandbook.toast.message": "A new entry has been made.",
+  "gui.travellershandbook.toast.goal_message": "A journal goal has been completed.",
+  "gui.travellershandbook.requirement.advancement_progress": "Complete %s: %s/%s",
+  "gui.travellershandbook.requirement.item_progress": "Collect %s: %s/%s",
+  "gui.travellershandbook.requirement.structure_progress": "Visit %s: %s/%s",
+  "gui.travellershandbook.requirement.entry_progress": "Complete %s: %s/%s",
+  "gui.travellershandbook.requirement.named_progress": "%s: %s/%s",
 
   "pack.travellers-handbook.default_entries": "Traveller's Handbook Default Entries",
   "travellers_handbook.midnightconfig.loadDefaultEntries": "Load default entries including with the mod",

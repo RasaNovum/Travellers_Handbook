@@ -19,6 +19,7 @@ import net.rasanovum.travellershandbook.TravellersHandbook;
 import net.rasanovum.travellershandbook.data.DefaultEntriesPackManager;
 import net.rasanovum.travellershandbook.data.JournalDataLoader;
 import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
+import net.rasanovum.travellershandbook.progression.JournalProgressManager;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -32,12 +33,17 @@ public final class FabricMain implements ModInitializer {
         registerDataPackListener();
 
         ServerLifecycleEvents.SERVER_STARTED.register(DefaultEntriesPackManager::onServerStarted);
-        ServerTickEvents.END_SERVER_TICK.register(DefaultEntriesPackManager::tick);
+        ServerLifecycleEvents.SERVER_STOPPED.register(JournalProgressManager::stop);
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            DefaultEntriesPackManager.tick(server);
+            JournalProgressManager.tick(server);
+        });
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 JournalNetworkManager.syncToPlayer(handler.player));
         ServerPlayerEvents.COPY_FROM.register((oldPlayer, newPlayer, alive) ->
         {
+            JournalProgressManager.copyPlayerState(oldPlayer, newPlayer);
             JournalNetworkManager.copyJournalState(oldPlayer, newPlayer);
             JournalNetworkManager.syncToPlayer(newPlayer);
         });

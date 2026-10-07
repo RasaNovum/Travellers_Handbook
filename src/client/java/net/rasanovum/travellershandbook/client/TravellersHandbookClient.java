@@ -3,11 +3,10 @@ package net.rasanovum.travellershandbook.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.rasanovum.travellershandbook.TravellersHandbookConfig;
 import net.rasanovum.travellershandbook.client.toast.JournalNotificationManager;
-import net.rasanovum.travellershandbook.data.JournalEntry;
+import net.rasanovum.travellershandbook.data.JournalRequirement;
 import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
 import net.rasanovum.travellershandbook.client.hud.JournalTutorialOverlay;
 import net.rasanovum.travellershandbook.client.screen.JournalScreen;
@@ -22,7 +21,7 @@ public final class TravellersHandbookClient {
     private static Runnable journalOpenedSender = () -> {
     };
 
-    public static final List<JournalEntry> CLIENT_ENTRIES_CACHE = new ArrayList<>();
+    public static final List<JournalNetworkManager.SyncEntry> CLIENT_ENTRIES_CACHE = new ArrayList<>();
     public static final java.util.Set<String> UNREAD_ENTRIES_SET = new HashSet<>();
     private static final java.util.Set<String> DISPLAYED_ADVANCEMENTS = new HashSet<>();
 
@@ -55,15 +54,13 @@ public final class TravellersHandbookClient {
             List<JournalNetworkManager.SyncEntry> entries,
             boolean journalOpened
     ) {
-        String lockedDescription = Component.translatable("gui.travellershandbook.locked_description").getString();
-        List<JournalEntry> tempEntries = new ArrayList<>(entries.size());
+        List<JournalNetworkManager.SyncEntry> receivedEntries = new ArrayList<>(entries);
         java.util.Set<String> displayedAdvancements = new HashSet<>();
 
-        for (JournalNetworkManager.SyncEntry entry : entries) {
-            String description = entry.unlocked() ? entry.description() : lockedDescription;
-            tempEntries.add(new JournalEntry(entry.category(), entry.title(), description, entry.advancementRequirement()));
-            if (entry.advancementHasDisplay()) {
-                displayedAdvancements.add(entry.advancementRequirement());
+        for (JournalNetworkManager.SyncEntry entry : receivedEntries) {
+            String advancement = entry.advancementRequirement();
+            if (entry.advancementHasDisplay() && !advancement.isEmpty()) {
+                displayedAdvancements.add(advancement);
             }
         }
 
@@ -71,36 +68,67 @@ public final class TravellersHandbookClient {
             DISPLAYED_ADVANCEMENTS.clear();
             DISPLAYED_ADVANCEMENTS.addAll(displayedAdvancements);
             JournalTutorialOverlay.setJournalOpened(journalOpened);
-            applyEntries(tempEntries);
+            applyEntries(receivedEntries);
         });
     }
 
-    public static void applyEntries(List<JournalEntry> entries) {
-        String lockedDescription = Component.translatable("gui.travellershandbook.locked_description").getString();
-
+    public static void applyEntries(List<JournalNetworkManager.SyncEntry> entries) {
         if (!CLIENT_ENTRIES_CACHE.isEmpty()) {
-            for (JournalEntry newEntry : entries) {
-                if (!newEntry.description().equals(lockedDescription)) {
-                    boolean wasPreviouslyLocked = CLIENT_ENTRIES_CACHE.stream()
-                            .anyMatch(cachedEntry -> cachedEntry.advancementRequirement().equals(newEntry.advancementRequirement())
-                                    && cachedEntry.description().equals(lockedDescription));
+            for (JournalNetworkManager.SyncEntry newEntry : entries) {
+                JournalNetworkManager.SyncEntry oldEntry = CLIENT_ENTRIES_CACHE.stream()
+                        .filter(cachedEntry -> cachedEntry.id().equals(newEntry.id()))
+                        .findFirst()
+                        .orElse(null);
+                if (oldEntry == null) {
+                    continue;
+                }
 
-                    if (wasPreviouslyLocked) {
-                        UNREAD_ENTRIES_SET.add(newEntry.advancementRequirement());
-                        JournalNotificationManager.notifyNewEntry(
-                                newEntry.title(),
-                                "gui.travellershandbook.toast.message",
-                                DISPLAYED_ADVANCEMENTS.contains(newEntry.advancementRequirement())
-                                        ? Math.max(0, TravellersHandbookConfig.entryToastDelayTicks)
-                                        : 0
-                        );
-                    }
+                boolean goalCompleted = !oldEntry.completed() && newEntry.completed() && newEntry.hasGoals();
+                boolean lockUnlocked = !oldEntry.unlocked() && newEntry.unlocked() && hasLockRequirement(newEntry);
+                if (goalCompleted || lockUnlocked) {
+                    UNREAD_ENTRIES_SET.add(newEntry.id());
+                    JournalNotificationManager.notifyNewEntry(
+                            newEntry.title(),
+                            goalCompleted ? "gui.travellershandbook.toast.goal_message" : "gui.travellershandbook.toast.message",
+                            notificationDelay(newEntry)
+                    );
                 }
             }
         }
 
         CLIENT_ENTRIES_CACHE.clear();
         CLIENT_ENTRIES_CACHE.addAll(entries);
+        java.util.Set<String> currentEntryIds = new HashSet<>();
+        for (JournalNetworkManager.SyncEntry entry : entries) {
+            currentEntryIds.add(entry.id());
+        }
+        UNREAD_ENTRIES_SET.retainAll(currentEntryIds);
+        Minecraft client = Minecraft.getInstance();
+        if (client.screen instanceof JournalScreen journalScreen) {
+            journalScreen.refreshEntries();
+        }
+    }
+
+    public static void clearClientState() {
+        CLIENT_ENTRIES_CACHE.clear();
+        UNREAD_ENTRIES_SET.clear();
+        DISPLAYED_ADVANCEMENTS.clear();
+        JournalNotificationManager.clearPendingToasts();
+        Minecraft client = Minecraft.getInstance();
+        if (client.screen instanceof JournalScreen journalScreen) {
+            journalScreen.refreshEntries();
+        }
+    }
+
+    private static boolean hasLockRequirement(JournalNetworkManager.SyncEntry entry) {
+        return entry.requirements().stream().anyMatch(progress ->
+                progress.requirement().mode() == JournalRequirement.Mode.LOCK);
+    }
+
+    private static int notificationDelay(JournalNetworkManager.SyncEntry entry) {
+        return entry.advancementHasDisplay() && DISPLAYED_ADVANCEMENTS.contains(entry.advancementRequirement())
+                ? Math.max(0, TravellersHandbookConfig.entryToastDelayTicks)
+                : 0;
     }
 
     public static void tick(Minecraft client) {

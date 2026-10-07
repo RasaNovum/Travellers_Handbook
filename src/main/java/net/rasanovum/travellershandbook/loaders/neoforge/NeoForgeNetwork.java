@@ -21,7 +21,7 @@ public final class NeoForgeNetwork {
     }
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("1").playToClient(
+        event.registrar("3").playToClient(
                 NeoForgeSyncPayload.TYPE,
                 NeoForgeSyncPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->
@@ -30,7 +30,7 @@ public final class NeoForgeNetwork {
                                 payload.entries(),
                                 payload.journalOpened()))
         );
-        event.registrar("1").playToServer(
+        event.registrar("3").playToServer(
                 NeoForgeJournalOpenedPayload.TYPE,
                 NeoForgeJournalOpenedPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() ->

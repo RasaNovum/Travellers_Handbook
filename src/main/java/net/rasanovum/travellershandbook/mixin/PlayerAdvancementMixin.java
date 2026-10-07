@@ -1,8 +1,7 @@
 package net.rasanovum.travellershandbook.mixin;
 
 import net.minecraft.server.PlayerAdvancements;
-import net.rasanovum.travellershandbook.data.JournalDataLoader;
-import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
+import net.rasanovum.travellershandbook.progression.JournalProgressManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,17 +22,24 @@ public class PlayerAdvancementMixin {
     //? if <1.21 {
     /*@Inject(method = "award", at = @At("TAIL"))
     private void onAdvancementAwarded(Advancement advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
-        String earnedId = advancement.getId().toString();
+        String advancementId = advancement.getId().toString();
     *///?} else {
     @Inject(method = "award", at = @At("TAIL"))
     private void onAdvancementAwarded(AdvancementHolder advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
-        String earnedId = advancement.id().toString();
+        String advancementId = advancement.id().toString();
     //?}
-        boolean unlockedNewNote = JournalDataLoader.SERVER_ENTRIES.values().stream()
-                .anyMatch(entry -> entry.advancementRequirement().equals(earnedId));
+        JournalProgressManager.refresh(this.player, advancementId, cir.getReturnValue());
+    }
 
-        if (unlockedNewNote) {
-            JournalNetworkManager.syncToPlayer(this.player);
-        }
+    //? if <1.21 {
+    /*@Inject(method = "revoke", at = @At("TAIL"))
+    private void onAdvancementRevoked(Advancement advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
+        String advancementId = advancement.getId().toString();
+    *///?} else {
+    @Inject(method = "revoke", at = @At("TAIL"))
+    private void onAdvancementRevoked(AdvancementHolder advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
+        String advancementId = advancement.id().toString();
+    //?}
+        JournalProgressManager.refresh(this.player, advancementId, cir.getReturnValue());
     }
 }

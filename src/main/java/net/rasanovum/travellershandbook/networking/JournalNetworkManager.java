@@ -7,9 +7,12 @@ import net.minecraft.world.entity.player.Player;
 import net.rasanovum.travellershandbook.TravellersHandbook;
 import net.rasanovum.travellershandbook.data.JournalDataLoader;
 import net.rasanovum.travellershandbook.data.JournalEntry;
+import net.rasanovum.travellershandbook.data.JournalRequirement;
+import net.rasanovum.travellershandbook.progression.JournalProgressManager;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 //? if <1.21 {
 /*import net.minecraft.advancements.Advancement;
@@ -55,12 +58,26 @@ public final class JournalNetworkManager {
 
     public static List<SyncEntry> entriesFor(ServerPlayer player) {
         List<SyncEntry> entries = new ArrayList<>(JournalDataLoader.SERVER_ENTRIES.size());
+        Map<ResourceLocation, JournalProgressManager.EntryProgress> progressByEntry = JournalProgressManager.entryProgress(player);
 
-        for (JournalEntry entry : JournalDataLoader.SERVER_ENTRIES.values()) {
-            String requirement = entry.advancementRequirement();
-            boolean unlocked = requirement.isEmpty() || hasAdvancement(player, requirement);
-            boolean advancementHasDisplay = !requirement.isEmpty() && advancementHasDisplay(player, requirement);
-            entries.add(new SyncEntry(entry.category(), entry.title(), entry.description(), requirement, unlocked, advancementHasDisplay));
+        for (Map.Entry<ResourceLocation, JournalEntry> loadedEntry : JournalDataLoader.SERVER_ENTRIES.entrySet()) {
+            JournalEntry entry = loadedEntry.getValue();
+            JournalProgressManager.EntryProgress entryProgress = progressByEntry.get(loadedEntry.getKey());
+            List<RequirementProgress> requirements = new ArrayList<>(entry.requirements().size());
+            boolean advancementHasDisplay = false;
+
+            for (int i = 0; i < entry.requirements().size(); i++) {
+                JournalRequirement requirement = entry.requirements().get(i);
+                long progress = Math.min(requirement.amount(), Math.max(0, entryProgress.progress().get(i)));
+                boolean satisfied = progress >= requirement.amount();
+                requirements.add(new RequirementProgress(requirement, progress, satisfied));
+                if (requirement.type() == JournalRequirement.Type.ADVANCEMENT && satisfied) {
+                    advancementHasDisplay |= advancementHasDisplay(player, requirement.id());
+                }
+            }
+
+            entries.add(new SyncEntry(loadedEntry.getKey().toString(), entry.category(), entry.title(), entry.description(),
+                    requirements, entryProgress.unlocked(), entryProgress.completed(), advancementHasDisplay));
         }
 
         return entries;
@@ -71,11 +88,23 @@ public final class JournalNetworkManager {
         buffer.writeInt(entries.size());
 
         for (SyncEntry entry : entries) {
+            buffer.writeUtf(entry.id());
             buffer.writeUtf(entry.category());
             buffer.writeBoolean(entry.unlocked());
             buffer.writeUtf(entry.title());
             buffer.writeUtf(entry.description());
-            buffer.writeUtf(entry.advancementRequirement());
+            buffer.writeVarInt(entry.requirements().size());
+            for (RequirementProgress requirementProgress : entry.requirements()) {
+                JournalRequirement requirement = requirementProgress.requirement();
+                buffer.writeEnum(requirement.type());
+                buffer.writeUtf(requirement.id());
+                buffer.writeVarLong(requirement.amount());
+                buffer.writeEnum(requirement.mode());
+                buffer.writeUtf(requirement.displayName());
+                buffer.writeVarLong(requirementProgress.progress());
+                buffer.writeBoolean(requirementProgress.completed());
+            }
+            buffer.writeBoolean(entry.completed());
             buffer.writeBoolean(entry.advancementHasDisplay());
         }
     }
@@ -86,31 +115,24 @@ public final class JournalNetworkManager {
         List<SyncEntry> entries = new ArrayList<>(size);
 
         for (int i = 0; i < size; i++) {
+            String id = buffer.readUtf();
             String category = buffer.readUtf();
             boolean unlocked = buffer.readBoolean();
             String title = buffer.readUtf();
             String description = buffer.readUtf();
-            String advancementRequirement = buffer.readUtf();
+            int requirementCount = buffer.readVarInt();
+            List<RequirementProgress> requirements = new ArrayList<>(requirementCount);
+            for (int j = 0; j < requirementCount; j++) {
+                JournalRequirement requirement = new JournalRequirement(buffer.readEnum(JournalRequirement.Type.class),
+                        buffer.readUtf(), buffer.readVarLong(), buffer.readEnum(JournalRequirement.Mode.class), buffer.readUtf());
+                requirements.add(new RequirementProgress(requirement, buffer.readVarLong(), buffer.readBoolean()));
+            }
+            boolean completed = buffer.readBoolean();
             boolean advancementHasDisplay = buffer.readBoolean();
-            entries.add(new SyncEntry(category, title, description, advancementRequirement, unlocked, advancementHasDisplay));
+            entries.add(new SyncEntry(id, category, title, description, requirements, unlocked, completed, advancementHasDisplay));
         }
 
         return new SyncData(entries, journalOpened);
-    }
-
-    private static boolean hasAdvancement(ServerPlayer player, String advancementId) {
-        if (player.getServer() == null) {
-            return false;
-        }
-
-        ResourceLocation id = TravellersHandbook.parseId(advancementId);
-        //? if <1.21 {
-        /*Advancement advancement = player.getServer().getAdvancements().getAdvancement(id);
-        return advancement != null && player.getAdvancements().getOrStartProgress(advancement).isDone();
-        *///?} else {
-        AdvancementHolder advancement = player.getServer().getAdvancements().get(id);
-        return advancement != null && player.getAdvancements().getOrStartProgress(advancement).isDone();
-        //?}
     }
 
     private static boolean advancementHasDisplay(ServerPlayer player, String advancementId) {
@@ -128,8 +150,31 @@ public final class JournalNetworkManager {
         //?}
     }
 
-    public record SyncEntry(String category, String title, String description,
-                            String advancementRequirement, boolean unlocked, boolean advancementHasDisplay) {
+    public record SyncEntry(String id, String category, String title, String description,
+                            List<RequirementProgress> requirements, boolean unlocked, boolean completed,
+                            boolean advancementHasDisplay) {
+        public SyncEntry {
+            requirements = List.copyOf(requirements);
+        }
+
+        public boolean hasRequirements() {
+            return !requirements.isEmpty();
+        }
+
+        public boolean hasGoals() {
+            return requirements.stream().anyMatch(progress -> progress.requirement().isGoal());
+        }
+
+        public String advancementRequirement() {
+            return requirements.stream()
+                    .map(RequirementProgress::requirement)
+                    .filter(requirement -> requirement.type() == JournalRequirement.Type.ADVANCEMENT)
+                    .map(JournalRequirement::id)
+                    .findFirst().orElse("");
+        }
+    }
+
+    public record RequirementProgress(JournalRequirement requirement, long progress, boolean completed) {
     }
 
     public record SyncData(List<SyncEntry> entries, boolean journalOpened) {
