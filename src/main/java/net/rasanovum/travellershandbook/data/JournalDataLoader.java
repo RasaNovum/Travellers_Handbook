@@ -36,7 +36,8 @@ public class JournalDataLoader extends SimpleJsonResourceReloadListener {
                     SERVER_ENTRIES.put(id, JournalEntry.fromJson(jsonObject));
                 }
             } catch (Exception e) {
-                System.err.println("Failed to parse sorted journal entry JSON: " + id);
+                net.rasanovum.travellershandbook.TravellersHandbook.LOGGER.error(
+                        "Failed to parse sorted journal entry JSON: {}", id, e);
             }
         }
     }

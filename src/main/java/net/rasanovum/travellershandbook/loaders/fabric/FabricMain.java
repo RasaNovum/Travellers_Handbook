@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
@@ -19,6 +20,7 @@ import net.rasanovum.travellershandbook.TravellersHandbook;
 import net.rasanovum.travellershandbook.data.DefaultEntriesPackManager;
 import net.rasanovum.travellershandbook.data.JournalDataLoader;
 import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
+import net.rasanovum.travellershandbook.progression.JournalProgressManager;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -32,12 +34,17 @@ public final class FabricMain implements ModInitializer {
         registerDataPackListener();
 
         ServerLifecycleEvents.SERVER_STARTED.register(DefaultEntriesPackManager::onServerStarted);
-        ServerTickEvents.END_SERVER_TICK.register(DefaultEntriesPackManager::tick);
+        ServerLifecycleEvents.SERVER_STOPPED.register(JournalProgressManager::stop);
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            DefaultEntriesPackManager.tick(server);
+            JournalProgressManager.tick(server);
+        });
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 JournalNetworkManager.syncToPlayer(handler.player));
         ServerPlayerEvents.COPY_FROM.register((oldPlayer, newPlayer, alive) ->
         {
+            JournalProgressManager.copyPlayerState(oldPlayer, newPlayer);
             JournalNetworkManager.copyJournalState(oldPlayer, newPlayer);
             JournalNetworkManager.syncToPlayer(newPlayer);
         });
@@ -49,6 +56,7 @@ public final class FabricMain implements ModInitializer {
             boolean registered = ResourceManagerHelper.registerBuiltinResourcePack(
                     packId,
                     modContainer,
+                    Component.translatable("pack.travellers-handbook.default_entries"),
                     ResourcePackActivationType.NORMAL
             );
             if (registered) {

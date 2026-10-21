@@ -13,10 +13,6 @@ import java.util.List;
 public class JournalNotificationManager {
     private static final List<PendingToast> PENDING_TOASTS = new ArrayList<>();
 
-    public static void notifyNewEntry(String titleKey, String descKey) {
-        notifyNewEntry(titleKey, descKey, 0);
-    }
-
     public static void notifyNewEntry(String titleKey, String descKey, int delayTicks) {
         PENDING_TOASTS.add(new PendingToast(titleKey, descKey, Math.max(0, delayTicks)));
     }

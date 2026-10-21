@@ -101,6 +101,10 @@ java {
 	targetCompatibility = JavaVersion.toVersion(project.java_version)
 }
 
+tasks.named('sourcesJar') {
+	includeEmptyDirs = false
+}
+
 jar {
 	from('LICENSE.md') {
 		rename { "${it}_travellers-handbook" }

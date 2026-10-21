@@ -1,18 +1,24 @@
 package net.rasanovum.travellershandbook.client.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
 import net.rasanovum.travellershandbook.TravellersHandbookConfig;
 import net.rasanovum.travellershandbook.client.TravellersHandbookClient;
 import net.rasanovum.travellershandbook.TravellersHandbook;
-import net.rasanovum.travellershandbook.data.JournalEntry;
+import net.rasanovum.travellershandbook.data.JournalRequirement;
+import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
 
 import java.util.*;
 
@@ -24,26 +30,47 @@ public class JournalScreen extends Screen {
 
     private final int imageWidth = 335;
     private final int imageHeight = 220;
-    private static final int MAX_TITLE_WIDTH = 90;
+    private static final int MAX_TITLE_WIDTH = 88;
     private static final int MAX_PAGE_WIDTH = 100;
+    private static final int MAX_CATEGORY_WIDTH = 86;
     private static final int MAX_RUNE_LINE_WIDTH = 94;
     private static final int MAX_TITLE_LINES = 2;
     private static final int RIGHT_PAGE_CONTENT_BOTTOM = 188;
     private static final int TRAILING_SPACER_LINES = 1;
+    private static final char[] RUNES = {
+            'a', 'b', 'c', 'd', 'e', 'g', 'h', 'j', 'k', 'n',
+            'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'x', 'y', 'z'
+    };
+    private static final String[] CIPHER_CONSONANTS = {
+            "b", "c", "d", "f", "g", "h", "k", "l", "m", "n", "p", "r", "s", "t", "v", "w", "z"
+    };
+    private static final String[] CIPHER_VOWELS = {"a", "e", "i", "o", "u"};
+    private static final String[] OBFUSCATED_TITLE_WORDS = {
+            "ancient", "cipher", "forgotten", "hidden", "mystery", "runes", "sealed", "veiled"
+    };
     private int leftPos;
     private int topPos;
 
-    private final Map<String, List<JournalEntry>> groupedEntries = new LinkedHashMap<>();
+    private final Map<String, List<JournalNetworkManager.SyncEntry>> groupedEntries = new LinkedHashMap<>();
     private final Set<String> expandedCategories = new HashSet<>();
+    private final Set<String> expandedSubcategories = new HashSet<>();
     private final List<UiRow> visibleRows = new ArrayList<>();
+    private final List<Integer> visibleRowOffsets = new ArrayList<>();
     private int selectedRowIndex = -1;
+    private String selectedEntryId;
+    private String selectedGroupKey;
+    private boolean hasInitializedGroups;
+    private boolean rowsHideLockedCategories;
+    private Language rowsLanguage;
+    private Font rowsFont;
 
     private double leftPageScrollAmount = 0;
     private final int maxVisibleRowsOnLeftPage = 14;
+    private int totalLeftContentHeight;
 
     private double rightPageScrollAmount = 0;
-    private int totalWrappedLines = 0;
-    private int maxVisibleLinesOnPage = 14;
+    private int rightContentHeight;
+    private int rightViewportHeight;
 
     public JournalScreen() {
         super(Component.translatable("gui.travellershandbook.title"));
@@ -61,90 +88,187 @@ public class JournalScreen extends Screen {
 
     private void groupData() {
         groupedEntries.clear();
-        for (JournalEntry entry : TravellersHandbookClient.CLIENT_ENTRIES_CACHE) {
+        for (JournalNetworkManager.SyncEntry entry : TravellersHandbookClient.CLIENT_ENTRIES_CACHE) {
             groupedEntries.computeIfAbsent(entry.category(), k -> new ArrayList<>()).add(entry);
         }
-        if (!groupedEntries.isEmpty() && expandedCategories.isEmpty()) {
+        if (!groupedEntries.isEmpty() && !hasInitializedGroups) {
             expandedCategories.add(groupedEntries.keySet().iterator().next());
+            for (List<JournalNetworkManager.SyncEntry> entries : groupedEntries.values()) {
+                for (JournalNetworkManager.SyncEntry entry : entries) {
+                    if (!entry.subcategory().isEmpty()) {
+                        expandedSubcategories.add(groupKey(entry.category(), entry.subcategory()));
+                    }
+                }
+            }
+            hasInitializedGroups = true;
         }
     }
 
     private void rebuildVisibleRows() {
+        rowsHideLockedCategories = TravellersHandbookConfig.hideLockedCategories;
+        rowsLanguage = Language.getInstance();
+        rowsFont = this.font;
         visibleRows.clear();
+        visibleRowOffsets.clear();
+        totalLeftContentHeight = 0;
 
-        for (Map.Entry<String, List<JournalEntry>> group : groupedEntries.entrySet()) {
+        for (Map.Entry<String, List<JournalNetworkManager.SyncEntry>> group : groupedEntries.entrySet()) {
             String categoryName = group.getKey();
+            if (rowsHideLockedCategories && shouldHideCategory(group.getValue())) {
+                continue;
+            }
             boolean isExpanded = expandedCategories.contains(categoryName);
 
-            Component headerComponent = Component.literal("§l" + categoryName);
+            String categoryLabel = categoryName;
+            boolean truncated = false;
+            while (this.font.width(Component.literal(categoryLabel).withStyle(net.minecraft.ChatFormatting.BOLD)) > MAX_CATEGORY_WIDTH
+                    && categoryLabel.length() > 1) {
+                categoryLabel = categoryLabel.substring(0, categoryLabel.length() - 1);
+                truncated = true;
+            }
+            String ellipsis = truncated ? "..." : "";
+            while (truncated && this.font.width(Component.literal(categoryLabel + ellipsis)
+                    .withStyle(net.minecraft.ChatFormatting.BOLD)) > MAX_CATEGORY_WIDTH && categoryLabel.length() > 1) {
+                categoryLabel = categoryLabel.substring(0, categoryLabel.length() - 1);
+            }
+            String headerText = categoryLabel + ellipsis;
+            Component headerComponent = Component.literal(headerText).withStyle(net.minecraft.ChatFormatting.BOLD);
             FormattedCharSequence headerVisualText = headerComponent.getVisualOrderText();
 
-            visibleRows.add(new UiRow(categoryName, null, isExpanded, headerVisualText));
+            addRow(new UiRow(categoryName, "", null, isExpanded, headerVisualText, 10));
 
             if (isExpanded) {
-                for (JournalEntry entry : group.getValue()) {
-
-                    Component desc = Component.translatable("gui.travellershandbook.locked_description");
-                    boolean isLocked = entry.description().equals(desc.getString());
-
-                    if (isLocked) {
-                        String displayTitleString = "altfont_" + entry.title();
-                        String originalTitle = entry.title();
-
-                        if (originalTitle.length() > 16) {
-                            originalTitle = originalTitle.substring(0, 13) + "...";
+                LinkedHashMap<String, List<JournalNetworkManager.SyncEntry>> subgroups = new LinkedHashMap<>();
+                for (JournalNetworkManager.SyncEntry entry : group.getValue()) {
+                    subgroups.computeIfAbsent(entry.subcategory(), ignored -> new ArrayList<>()).add(entry);
+                }
+                for (Map.Entry<String, List<JournalNetworkManager.SyncEntry>> subgroup : subgroups.entrySet()) {
+                    String subcategoryName = subgroup.getKey();
+                    String subgroupKey = groupKey(categoryName, subcategoryName);
+                    if (!subcategoryName.isEmpty()) {
+                        boolean subcategoryExpanded = expandedSubcategories.contains(subgroupKey);
+                        String subcategoryLabel = truncateHeaderLabel(subcategoryName, MAX_CATEGORY_WIDTH - 12);
+                        Component subcategoryComponent = Component.literal(subcategoryLabel).withStyle(net.minecraft.ChatFormatting.BOLD);
+                        addRow(new UiRow(categoryName, subcategoryName, null, subcategoryExpanded,
+                                subcategoryComponent.getVisualOrderText(), 10));
+                        if (!subcategoryExpanded) {
+                            continue;
                         }
-
-                        Component singleLineComponent = Component.literal(originalTitle).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
-                        JournalEntry displayEntry = new JournalEntry(entry.category(), displayTitleString, entry.description(), entry.advancementRequirement());
-
-                        visibleRows.add(new UiRow(categoryName, displayEntry, false, singleLineComponent.getVisualOrderText()));
-                    } else {
-                        String displayTitleString = entry.title();
-                        Component fullTitleText = Component.literal(displayTitleString);
-                        List<FormattedCharSequence> splitTitleLines = this.font.split(fullTitleText, MAX_TITLE_WIDTH);
-                        if (splitTitleLines.isEmpty()) continue;
-
-                        JournalEntry displayEntry = new JournalEntry(entry.category(), displayTitleString, entry.description(), entry.advancementRequirement());
-                        visibleRows.add(new UiRow(categoryName, displayEntry, false, splitTitleLines.get(0)));
-
-                        for (int i = 1; i < splitTitleLines.size(); i++) {
-                            UiRow extensionRow = new UiRow(categoryName, displayEntry, false, splitTitleLines.get(i));
-                            extensionRow.isTitleExtension = true;
-                            visibleRows.add(extensionRow);
-                        }
+                    }
+                    for (JournalNetworkManager.SyncEntry entry : subgroup.getValue()) {
+                        addEntryRows(categoryName, subcategoryName, entry);
                     }
                 }
             }
         }
+
+        if (selectedEntryId != null) {
+            selectedRowIndex = -1;
+            for (int i = 0; i < visibleRows.size(); i++) {
+                UiRow row = visibleRows.get(i);
+                if (!row.isHeader && row.entry.id().equals(selectedEntryId)) {
+                    selectedRowIndex = i;
+                    break;
+                }
+            }
+            if (selectedRowIndex < 0) {
+                selectedEntryId = null;
+            }
+        }
+        if (selectedEntryId == null && selectedGroupKey != null) {
+            selectedRowIndex = -1;
+            for (int i = 0; i < visibleRows.size(); i++) {
+                UiRow row = visibleRows.get(i);
+                if (row.isHeader && row.groupKey().equals(selectedGroupKey)) {
+                    selectedRowIndex = i;
+                    break;
+                }
+            }
+            if (selectedRowIndex < 0) {
+                selectedGroupKey = null;
+            }
+        }
+    }
+
+    private void addEntryRows(String categoryName, String subcategoryName, JournalNetworkManager.SyncEntry entry) {
+        boolean isLocked = !entry.unlocked();
+        int titleWidth = subcategoryName.isEmpty() ? MAX_TITLE_WIDTH : MAX_TITLE_WIDTH - 12;
+        List<FormattedCharSequence> splitTitleLines;
+        if (isLocked) {
+            String originalTitle = entry.title();
+            if (originalTitle.length() > 16) {
+                originalTitle = originalTitle.substring(0, 13) + "...";
+            }
+            Component singleLineComponent = Component.literal(originalTitle).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
+            splitTitleLines = List.of(singleLineComponent.getVisualOrderText());
+        } else {
+            splitTitleLines = this.font.split(Component.literal(entry.title()), titleWidth);
+            if (splitTitleLines.isEmpty()) {
+                return;
+            }
+        }
+        for (int i = 0; i < splitTitleLines.size(); i++) {
+            UiRow row = new UiRow(categoryName, subcategoryName, entry, false, splitTitleLines.get(i), 10);
+            row.isTitleExtension = i > 0;
+            if (i == splitTitleLines.size() - 1) {
+                row.height += 2;
+            }
+            addRow(row);
+        }
+    }
+
+    private void addRow(UiRow row) {
+        visibleRowOffsets.add(totalLeftContentHeight);
+        visibleRows.add(row);
+        totalLeftContentHeight += row.height;
+    }
+
+    private String groupKey(String categoryName, String subcategoryName) {
+        return categoryName + "\u0000" + subcategoryName;
+    }
+
+    private String truncateHeaderLabel(String label, int maxWidth) {
+        String visible = label;
+        boolean truncated = false;
+        while (this.font.width(Component.literal(visible).withStyle(net.minecraft.ChatFormatting.BOLD)) > maxWidth
+                && visible.length() > 1) {
+            visible = visible.substring(0, visible.length() - 1);
+            truncated = true;
+        }
+        if (!truncated) {
+            return visible;
+        }
+        while (this.font.width(Component.literal(visible + "...").withStyle(net.minecraft.ChatFormatting.BOLD)) > maxWidth
+                && visible.length() > 1) {
+            visible = visible.substring(0, visible.length() - 1);
+        }
+        return visible + "...";
+    }
+
+    private boolean shouldHideCategory(List<JournalNetworkManager.SyncEntry> entries) {
+        return !entries.isEmpty() && entries.stream()
+                .allMatch(entry -> entry.hasOnlyLocks() && !entry.unlocked());
+    }
+
+    public void refreshEntries() {
+        groupData();
+        rebuildVisibleRows();
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.rebuildVisibleRows();
+        if (rowsHideLockedCategories != TravellersHandbookConfig.hideLockedCategories
+                || rowsLanguage != Language.getInstance() || rowsFont != this.font) {
+            this.rebuildVisibleRows();
+        }
         int hoveredRowIndex = -1;
 
         RenderSystem.setShaderTexture(0, CUSTOM_BOOK_TEXTURE);
         guiGraphics.blit(CUSTOM_BOOK_TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, this.imageWidth, this.imageHeight);
 
 
-        // render left page
-        int indexLeftX = this.leftPos + 54; //24
-        int indexRowStartY = this.topPos + 52; //32
-        int startRowOffset = (int) this.leftPageScrollAmount;
-
-        if (mouseX >= indexLeftX && mouseX <= this.leftPos + 154) { //124
-            for (int i = 0; i < Math.min(visibleRows.size(), maxVisibleRowsOnLeftPage); i++) {
-                int rTop = indexRowStartY + (i * 10);
-                if (mouseY >= rTop && mouseY <= rTop + 9) {
-                    int hoveredIndex = startRowOffset + i;
-                    if (hoveredIndex < visibleRows.size()) {
-                        hoveredRowIndex = hoveredIndex;
-                    }
-                }
-            }
-        }
-
+        int indexLeftX = this.leftPos + 54;
+        int indexRowStartY = this.topPos + 52;
         int leftPageX = this.leftPos + 54; //20
         int leftPageY = this.topPos + 38; //18
         Component indexHeader = Component.translatable("gui.travellershandbook.index").withStyle(net.minecraft.ChatFormatting.UNDERLINE);
@@ -156,26 +280,39 @@ public class JournalScreen extends Screen {
         if (visibleRows.isEmpty()) {
             guiGraphics.drawString(this.font, noEntries, leftPageX, leftPageY, 0xFF555555, false);
         } else {
-            int leftScrollableRows = visibleRows.size() + TRAILING_SPACER_LINES;
-            int maxLeftScrollIndex = Math.max(0, leftScrollableRows - maxVisibleRowsOnLeftPage);
-            if (this.leftPageScrollAmount > maxLeftScrollIndex) {
-                this.leftPageScrollAmount = maxLeftScrollIndex;
+            int leftViewportHeight = maxVisibleRowsOnLeftPage * 10;
+            int maxLeftScroll = Math.max(0, totalLeftContentHeight - leftViewportHeight);
+            this.leftPageScrollAmount = Mth.clamp(this.leftPageScrollAmount, 0, maxLeftScroll);
+
+            if (mouseX >= indexLeftX && mouseX <= this.leftPos + 154) {
+                for (int rowIndex = 0; rowIndex < visibleRows.size(); rowIndex++) {
+                    int rowTop = indexRowStartY + visibleRowOffsets.get(rowIndex) - (int) this.leftPageScrollAmount;
+                    UiRow row = visibleRows.get(rowIndex);
+                    if (mouseY >= rowTop && mouseY < rowTop + 10
+                            && mouseY >= indexRowStartY && mouseY < indexRowStartY + leftViewportHeight
+                            && rowTop < indexRowStartY + leftViewportHeight
+                            && rowTop + row.height > indexRowStartY) {
+                        hoveredRowIndex = rowIndex;
+                        break;
+                    }
+                }
             }
 
-            for (int i = 0; i < Math.min(visibleRows.size(), maxVisibleRowsOnLeftPage); i++) {
-                int rowIndex = startRowOffset + i;
-                if (rowIndex >= visibleRows.size()) break;
-
+            guiGraphics.enableScissor(indexLeftX, indexRowStartY, this.leftPos + 154, indexRowStartY + leftViewportHeight);
+            for (int rowIndex = 0; rowIndex < visibleRows.size(); rowIndex++) {
                 UiRow row = visibleRows.get(rowIndex);
-                int currentY = leftPageY + (i * 10);
+                int currentY = indexRowStartY + visibleRowOffsets.get(rowIndex) - (int) this.leftPageScrollAmount;
+                if (currentY + row.height <= indexRowStartY || currentY >= indexRowStartY + leftViewportHeight) {
+                    continue;
+                }
 
                 boolean isHighlighted = false;
                 if (hoveredRowIndex >= 0 && hoveredRowIndex < visibleRows.size()) {
                     UiRow hoveredRow = visibleRows.get(hoveredRowIndex);
                     if (row.isHeader && hoveredRow.isHeader) {
-                        isHighlighted = row.categoryName.equals(hoveredRow.categoryName);
+                        isHighlighted = row.groupKey().equals(hoveredRow.groupKey());
                     } else if (!row.isHeader && !hoveredRow.isHeader) {
-                        isHighlighted = row.entry.advancementRequirement().equals(hoveredRow.entry.advancementRequirement());
+                        isHighlighted = row.entry.id().equals(hoveredRow.entry.id());
                     }
                 }
 
@@ -183,38 +320,48 @@ public class JournalScreen extends Screen {
                 if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size()) {
                     UiRow selectedRow = visibleRows.get(selectedRowIndex);
                     if (!row.isHeader && !selectedRow.isHeader) {
-                        isSelected = row.entry.advancementRequirement().equals(selectedRow.entry.advancementRequirement());
+                        isSelected = row.entry.id().equals(selectedRow.entry.id());
                     }
                 }
 
                 int color = isHighlighted ? 0xFF007700 : (row.isHeader ? 0xFF444444 : 0xFF666666);
 
                 if (row.isHeader) {
-                    guiGraphics.drawString(this.font, row.renderedTextLine, leftPageX, currentY, color, false);
-                    boolean categoryHasUnread = TravellersHandbookClient.UNREAD_ENTRIES_SET.stream().anyMatch(unreadRequirementId ->
-                            TravellersHandbookClient.CLIENT_ENTRIES_CACHE.stream().anyMatch(cached ->
-                                    cached.advancementRequirement().equals(unreadRequirementId) && cached.category().equals(row.categoryName)));
+                    int headerX = row.isSubcategoryHeader ? leftPageX + 12 : leftPageX;
+                    guiGraphics.drawString(this.font, row.renderedTextLine, headerX, currentY, color, false);
+                    if (!row.isSubcategoryHeader) {
+                        boolean categoryComplete = categoryComplete(row.categoryName);
+                        boolean categoryHasUnread = groupedEntries.get(row.categoryName).stream()
+                                .anyMatch(entry -> TravellersHandbookClient.UNREAD_ENTRIES_SET.contains(entry.id()));
 
-                    if (categoryHasUnread) {
-                        // int categoryTextWidth = this.font.width(row.renderedTextLine);
-                        int notificationX = leftPageX - 5;
-
-                        guiGraphics.drawString(this.font, "§l!", notificationX, currentY, 0xFFE69138, false);
+                        if (categoryComplete) {
+                            drawCheckMarker(guiGraphics, this.leftPos + 145, currentY + 2);
+                        } else if (categoryHasUnread) {
+                            guiGraphics.drawString(this.font, "§l!", this.leftPos + 145, currentY, 0xFFE69138, false);
+                        }
                     }
                 } else {
-                    int indentX = leftPageX + 12;
-                    boolean isUnread = TravellersHandbookClient.UNREAD_ENTRIES_SET.contains(row.entry.advancementRequirement());
+                    int indentX = leftPageX + (row.subcategoryName.isEmpty() ? 12 : 24);
+                    boolean isUnread = TravellersHandbookClient.UNREAD_ENTRIES_SET.contains(row.entry.id());
 
                     if (!row.isTitleExtension) {
+                        int markerX = indentX - 10;
                         if (isSelected) {
-                            guiGraphics.drawString(this.font, "> ", leftPageX + 4, currentY, 0xFF007700, false);
+                            guiGraphics.fill(markerX + 1, currentY + 2, markerX + 2, currentY + 7, 0xFF007700);
+                            guiGraphics.fill(markerX + 2, currentY + 3, markerX + 3, currentY + 6, 0xFF007700);
+                            guiGraphics.fill(markerX + 3, currentY + 4, markerX + 4, currentY + 5, 0xFF007700);
+                        } else if (row.entry.hasGoals() && row.entry.unlocked()) {
+                            if (row.entry.completed()) {
+                                drawCheckMarker(guiGraphics, markerX, currentY + 2);
+                            } else {
+                                drawEmptyCircleMarker(guiGraphics, markerX, currentY + 2);
+                            }
                         } else if (isUnread) {
-                            guiGraphics.drawString(this.font, "§l!", leftPageX + 6, currentY, 0xFFE69138, false);
+                            guiGraphics.drawString(this.font, "§l!", indentX - 6, currentY, 0xFFE69138, false);
                         }
                     }
 
-                    Component description = Component.translatable("gui.travellershandbook.locked_description");
-                    if (row.entry.description().equals(description.getString())) {
+                    if (!row.entry.unlocked()) {
 
                         TextExtractor extractor = new TextExtractor();
                         row.renderedTextLine.accept(extractor);
@@ -222,23 +369,22 @@ public class JournalScreen extends Screen {
 
                         String scrambledRuneLine = scrambleToRunes(currentLineText, rowIndex * 73L, this.minecraft.player.tickCount);
 
-                        Component finalRuneLine = Component.literal(scrambledRuneLine).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
-                        guiGraphics.drawString(this.font, finalRuneLine.getVisualOrderText(), indentX, currentY, 0xFF887766, false);
+                        int runeLineWidth = row.subcategoryName.isEmpty() ? MAX_TITLE_WIDTH : MAX_TITLE_WIDTH - 12;
+                        guiGraphics.drawString(this.font, fitRuneLine(scrambledRuneLine, runeLineWidth), indentX, currentY, 0xFF887766, false);
 
                     } else {
                         guiGraphics.drawString(this.font, row.renderedTextLine, indentX, currentY, color, false);
                     }
                 }
             }
+            guiGraphics.disableScissor();
 
-            // left page scrollbar
-            if (leftScrollableRows > maxVisibleRowsOnLeftPage) {
-                int leftBarX = this.leftPos + 156; //126
-                int leftBarTrackY = this.topPos + 52; //32
-                int leftBarTrackHeight = maxVisibleRowsOnLeftPage * 10;
-
-                int thumbHeight = Math.max(8, (int) ((double) maxVisibleRowsOnLeftPage / leftScrollableRows * leftBarTrackHeight));
-                int thumbYOffset = (int) ((this.leftPageScrollAmount / maxLeftScrollIndex) * (leftBarTrackHeight - thumbHeight));
+            if (totalLeftContentHeight > leftViewportHeight) {
+                int leftBarX = this.leftPos + 156;
+                int leftBarTrackY = this.topPos + 52;
+                int leftBarTrackHeight = leftViewportHeight;
+                int thumbHeight = Math.max(8, (int) ((double) leftViewportHeight / totalLeftContentHeight * leftBarTrackHeight));
+                int thumbYOffset = maxLeftScroll == 0 ? 0 : (int) ((this.leftPageScrollAmount / maxLeftScroll) * (leftBarTrackHeight - thumbHeight));
                 guiGraphics.fill(leftBarX, leftBarTrackY + thumbYOffset, leftBarX + 2, leftBarTrackY + thumbYOffset + thumbHeight, 0x88444444);
             }
         }
@@ -246,14 +392,16 @@ public class JournalScreen extends Screen {
         // render right page
         int rightPageX = this.leftPos + 180; //146 182
         int rightPageY = this.topPos + 38; //18
+        this.rightContentHeight = 0;
+        this.rightViewportHeight = 0;
 
         if (selectedRowIndex >= 0 && selectedRowIndex < visibleRows.size() && !visibleRows.isEmpty()) {
             UiRow activeRow = visibleRows.get(selectedRowIndex);
 
             if (!activeRow.isHeader) {
-                JournalEntry activeEntry = activeRow.entry;
+                JournalNetworkManager.SyncEntry activeEntry = activeRow.entry;
 
-                boolean isLockedTitle = activeEntry.title().startsWith("altfont_");
+                boolean isLockedTitle = !activeEntry.unlocked();
                 String titleToWrap = isLockedTitle ? createObfuscatedTitle(activeEntry) : activeEntry.title();
                 int titleWidth = isLockedTitle ? MAX_RUNE_LINE_WIDTH : MAX_PAGE_WIDTH;
                 Component titleComponent = isLockedTitle
@@ -268,39 +416,53 @@ public class JournalScreen extends Screen {
                         TextExtractor extractor = new TextExtractor();
                         titleLine.accept(extractor);
                         String runeText = scrambleToRunes(extractor.getText(), entrySeed + i * 31L, this.minecraft.player.tickCount);
-                        titleLine = Component.literal(runeText).withStyle(style -> style.withFont(Minecraft.ALT_FONT)).getVisualOrderText();
+                        titleLine = fitRuneLine(runeText, MAX_PAGE_WIDTH);
                     }
                     guiGraphics.drawString(this.font, titleLine, rightPageX, rightPageY + i * 9, isLockedTitle ? 0xFF887766 : 0xFF111111, false);
                 }
                 rightPageY += titleLineCount * 9 + 2;
 
-                guiGraphics.drawString(this.font, "§o" + activeEntry.category(), rightPageX, rightPageY, 0xFF666666, false);
-                rightPageY += 13;
+                String groupLabel = activeEntry.category() + (activeEntry.subcategory().isEmpty()
+                        ? "" : " / " + activeEntry.subcategory());
+                List<FormattedCharSequence> groupLines = this.font.split(
+                        Component.literal(groupLabel).withStyle(net.minecraft.ChatFormatting.ITALIC), MAX_PAGE_WIDTH);
+                int groupLineCount = Math.min(2, groupLines.size());
+                for (int i = 0; i < groupLineCount; i++) {
+                    guiGraphics.drawString(this.font, groupLines.get(i), rightPageX, rightPageY + i * 9, 0xFF666666, false);
+                }
+                rightPageY += groupLineCount * 9 + 4;
 
+                boolean isRightPageLocked = !activeEntry.unlocked();
                 Component bodyText = Component.literal(activeEntry.description());
-                Component lockedDescCheck = Component.translatable("gui.travellershandbook.locked_description");
-                boolean isRightPageLocked = activeEntry.description().equals(lockedDescCheck.getString());
                 if (isRightPageLocked) {
                     bodyText = Component.literal(createObfuscatedBody(activeEntry))
                             .withStyle(style -> style.withFont(Minecraft.ALT_FONT));
                 }
 
                 int dynamicWrapWidth = isRightPageLocked ? MAX_RUNE_LINE_WIDTH : MAX_PAGE_WIDTH;
-                List<FormattedCharSequence> lines = this.font.split(bodyText, dynamicWrapWidth);
-                this.totalWrappedLines = lines.size() + TRAILING_SPACER_LINES;
-                this.maxVisibleLinesOnPage = Math.max(0, (this.topPos + RIGHT_PAGE_CONTENT_BOTTOM - rightPageY) / 9);
-
-                int maxRightScrollIndex = Math.max(0, this.totalWrappedLines - maxVisibleLinesOnPage);
-                if (this.rightPageScrollAmount > maxRightScrollIndex) {
-                    this.rightPageScrollAmount = maxRightScrollIndex;
+                List<FormattedCharSequence> lines = new ArrayList<>(this.font.split(bodyText, dynamicWrapWidth));
+                if (!isRightPageLocked) {
+                    lines.add(Component.literal("").getVisualOrderText());
+                    for (JournalNetworkManager.RequirementProgress progress : activeEntry.requirements()) {
+                        JournalRequirement requirement = progress.requirement();
+                        Component progressText = Component.translatable(requirementTranslationKey(requirement),
+                                requirementName(requirement), progress.progress(), requirement.amount());
+                        lines.addAll(this.font.split(progressText, MAX_PAGE_WIDTH));
+                    }
                 }
-                int startLineOffset = (int) this.rightPageScrollAmount;
+                this.rightContentHeight = (lines.size() + TRAILING_SPACER_LINES) * 9;
+                this.rightViewportHeight = Math.max(0, this.topPos + RIGHT_PAGE_CONTENT_BOTTOM - rightPageY);
+                int maxRightScroll = Math.max(0, rightContentHeight - rightViewportHeight);
+                this.rightPageScrollAmount = Mth.clamp(this.rightPageScrollAmount, 0, maxRightScroll);
+                int scrollOffset = (int) this.rightPageScrollAmount;
+                guiGraphics.enableScissor(rightPageX, rightPageY, rightPageX + MAX_PAGE_WIDTH,
+                        rightPageY + rightViewportHeight);
 
-                for (int i = 0; i < maxVisibleLinesOnPage; i++) {
-                    int lineIndex = startLineOffset + i;
-                    if (lineIndex >= lines.size()) break;
-
-                    int currentLineY = rightPageY + (i * 9);
+                for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+                    int currentLineY = rightPageY + lineIndex * 9 - scrollOffset;
+                    if (currentLineY + 9 <= rightPageY || currentLineY >= rightPageY + rightViewportHeight) {
+                        continue;
+                    }
                     if (isRightPageLocked) {
                         TextExtractor extractor = new TextExtractor();
                         lines.get(lineIndex).accept(extractor);
@@ -308,29 +470,39 @@ public class JournalScreen extends Screen {
 
                         String randomizedLine = scrambleToRunes(rawLineText, getEntrySeed(activeEntry) + lineIndex * 117L, this.minecraft.player.tickCount);
 
-                        Component runeBodyLine = Component.literal(randomizedLine).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
-                        guiGraphics.drawString(this.font, runeBodyLine.getVisualOrderText(), rightPageX, currentLineY, 0xFF554433, false);
+                        guiGraphics.drawString(this.font, fitRuneLine(randomizedLine, MAX_PAGE_WIDTH), rightPageX, currentLineY, 0xFF554433, false);
                     } else {
                         guiGraphics.drawString(this.font, lines.get(lineIndex), rightPageX, currentLineY, 0xFF333333, false);
                     }
                 }
 
-                // right page scrollbar
-                if (this.totalWrappedLines > maxVisibleLinesOnPage) {
+                guiGraphics.disableScissor();
+                if (maxRightScroll > 0 && rightViewportHeight > 0) {
                     int barX = this.leftPos + 288; //252
-                    int barTrackY = this.topPos + 62; //42
-                    int barTrackHeight = maxVisibleLinesOnPage * 9;
-
-                    int thumbHeight = Math.max(8, (int) ((double) maxVisibleLinesOnPage / this.totalWrappedLines * barTrackHeight));
-                    int thumbYOffset = (int) ((this.rightPageScrollAmount / maxRightScrollIndex) * (barTrackHeight - thumbHeight));
+                    int barTrackY = rightPageY;
+                    int barTrackHeight = rightViewportHeight;
+                    int thumbHeight = Math.min(barTrackHeight,
+                            Math.max(8, (int) ((double) rightViewportHeight / rightContentHeight * barTrackHeight)));
+                    int thumbYOffset = (int) ((this.rightPageScrollAmount / maxRightScroll) * (barTrackHeight - thumbHeight));
                     guiGraphics.fill(barX, barTrackY + thumbYOffset, barX + 2, barTrackY + thumbYOffset + thumbHeight, 0x88444444);
                 }
             } else {
-                Component categoryHeader = Component.literal(activeRow.categoryName).withStyle(net.minecraft.ChatFormatting.BOLD);
-                guiGraphics.drawString(this.font, categoryHeader, rightPageX, rightPageY, 0xFF111111, false);
-                rightPageY += 15;
+                this.rightContentHeight = 0;
+                this.rightViewportHeight = 0;
+                String headerText = activeRow.isSubcategoryHeader
+                        ? activeRow.categoryName + " / " + activeRow.subcategoryName
+                        : activeRow.categoryName;
+                Component categoryHeader = Component.literal(headerText).withStyle(net.minecraft.ChatFormatting.BOLD);
+                List<FormattedCharSequence> headerLines = this.font.split(categoryHeader, MAX_PAGE_WIDTH);
+                int headerLineCount = Math.min(3, headerLines.size());
+                for (int i = 0; i < headerLineCount; i++) {
+                    guiGraphics.drawString(this.font, headerLines.get(i), rightPageX, rightPageY + i * 9, 0xFF111111, false);
+                }
+                rightPageY += headerLineCount * 9 + 6;
 
-                String helpKey = activeRow.isExpanded ? "gui.travellershandbook.help.expanded" : "gui.travellershandbook.help.collapsed";
+                String helpKey = activeRow.isSubcategoryHeader
+                        ? (activeRow.isExpanded ? "gui.travellershandbook.help.subcategory_expanded" : "gui.travellershandbook.help.subcategory_collapsed")
+                        : (activeRow.isExpanded ? "gui.travellershandbook.help.expanded" : "gui.travellershandbook.help.collapsed");
                 Component helperMsg = Component.translatable(helpKey);
 
                 List<FormattedCharSequence> lines = this.font.split(helperMsg, MAX_PAGE_WIDTH);
@@ -361,50 +533,53 @@ public class JournalScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
-            int leftPageX = this.leftPos + 54; //24
-            int rowStartY = this.topPos + 52; //32
-            int startRowOffset = (int) this.leftPageScrollAmount;
+            int leftPageX = this.leftPos + 54;
+            int rowStartY = this.topPos + 52;
 
-            if (mouseX >= leftPageX && mouseX <= this.leftPos + 144) { //124
-                for (int i = 0; i < Math.min(visibleRows.size(), maxVisibleRowsOnLeftPage); i++) {
-                    int rowTop = rowStartY + (i * 10);
-                    int rowBottom = rowTop + 9;
+            if (mouseX >= leftPageX && mouseX <= this.leftPos + 154) {
+                for (int actualDataIndex = 0; actualDataIndex < visibleRows.size(); actualDataIndex++) {
+                    UiRow clickedRow = visibleRows.get(actualDataIndex);
+                    int rowTop = rowStartY + visibleRowOffsets.get(actualDataIndex) - (int) this.leftPageScrollAmount;
+                    int rowBottom = rowTop + clickedRow.height;
 
-                    if (mouseY >= rowTop && mouseY <= rowBottom) {
-                        int actualDataIndex = startRowOffset + i;
+                    if (mouseY >= rowTop && mouseY < rowTop + 10
+                            && mouseY >= rowStartY && mouseY < rowStartY + maxVisibleRowsOnLeftPage * 10
+                            && rowTop < rowStartY + maxVisibleRowsOnLeftPage * 10
+                            && rowBottom > rowStartY) {
+                        this.rightPageScrollAmount = 0;
 
-                        if (actualDataIndex < visibleRows.size()) {
-                            UiRow clickedRow = visibleRows.get(actualDataIndex);
-                            this.rightPageScrollAmount = 0;
-
-                            if (clickedRow.isHeader) {
-                                if (expandedCategories.contains(clickedRow.categoryName)) {
-                                    expandedCategories.remove(clickedRow.categoryName);
+                        if (clickedRow.isHeader) {
+                            if (clickedRow.isSubcategoryHeader) {
+                                if (expandedSubcategories.contains(clickedRow.groupKey())) {
+                                    expandedSubcategories.remove(clickedRow.groupKey());
                                 } else {
-                                    expandedCategories.add(clickedRow.categoryName);
+                                    expandedSubcategories.add(clickedRow.groupKey());
                                 }
-                                rebuildVisibleRows();
+                            } else if (expandedCategories.contains(clickedRow.categoryName)) {
+                                expandedCategories.remove(clickedRow.categoryName);
                             } else {
-                                if (this.selectedRowIndex == actualDataIndex) {
-                                    this.selectedRowIndex = -1;
-                                } else {
-                                    this.selectedRowIndex = actualDataIndex;
-
-                                    if (clickedRow.entry != null) {
-                                        TravellersHandbookClient.UNREAD_ENTRIES_SET.remove(
-                                                clickedRow.entry.advancementRequirement()
-                                        );
-                                    }
-                                }
+                                expandedCategories.add(clickedRow.categoryName);
                             }
-
-                            this.minecraft.getSoundManager().play(
-                                    net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
-                                            net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, 0.85F
-                                    )
-                            );
-                            return true;
+                            this.selectedGroupKey = clickedRow.groupKey();
+                            this.selectedEntryId = null;
+                            rebuildVisibleRows();
+                        } else if (this.selectedEntryId != null && clickedRow.entry.id().equals(this.selectedEntryId)) {
+                            this.selectedRowIndex = -1;
+                            this.selectedEntryId = null;
+                            this.selectedGroupKey = null;
+                        } else {
+                            this.selectedRowIndex = actualDataIndex;
+                            this.selectedEntryId = clickedRow.entry.id();
+                            this.selectedGroupKey = clickedRow.groupKey();
+                            TravellersHandbookClient.UNREAD_ENTRIES_SET.remove(clickedRow.entry.id());
                         }
+
+                        this.minecraft.getSoundManager().play(
+                                net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                                        net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, 0.85F
+                                )
+                        );
+                        return true;
                     }
                 }
             }
@@ -423,16 +598,16 @@ public class JournalScreen extends Screen {
         int centerCrease = this.leftPos + 165; //135
 
         if (mouseX >= this.leftPos && mouseX < centerCrease) {
-            int leftScrollableRows = visibleRows.size() + TRAILING_SPACER_LINES;
-            if (leftScrollableRows > maxVisibleRowsOnLeftPage) {
-                int maxLeftScroll = leftScrollableRows - maxVisibleRowsOnLeftPage;
-                this.leftPageScrollAmount = Mth.clamp(this.leftPageScrollAmount - (delta * 1.5), 0, maxLeftScroll);
+            int leftViewportHeight = maxVisibleRowsOnLeftPage * 10;
+            int maxLeftScroll = Math.max(0, totalLeftContentHeight - leftViewportHeight);
+            if (maxLeftScroll > 0) {
+                this.leftPageScrollAmount = Mth.clamp(this.leftPageScrollAmount - (delta * 12), 0, maxLeftScroll);
                 return true;
             }
         } else if (mouseX >= centerCrease && mouseX <= this.leftPos + this.imageWidth) {
-            if (this.totalWrappedLines > maxVisibleLinesOnPage) {
-                int maxRightScroll = this.totalWrappedLines - maxVisibleLinesOnPage;
-                this.rightPageScrollAmount = Mth.clamp(this.rightPageScrollAmount - (delta * 1.5), 0, maxRightScroll);
+            int maxRightScroll = Math.max(0, rightContentHeight - rightViewportHeight);
+            if (maxRightScroll > 0) {
+                this.rightPageScrollAmount = Mth.clamp(this.rightPageScrollAmount - (delta * 12), 0, maxRightScroll);
                 return true;
             }
         }
@@ -458,22 +633,70 @@ public class JournalScreen extends Screen {
         return false;
     }
 
+    private boolean categoryComplete(String categoryName) {
+        int requirements = 0;
+        int completed = 0;
+        for (JournalNetworkManager.SyncEntry entry : groupedEntries.get(categoryName)) {
+            if (entry.hasRequirements()) {
+                requirements++;
+                if (entry.completed()) {
+                    completed++;
+                }
+            }
+        }
+        return requirements > 0 && requirements == completed;
+    }
+
+    private void drawEmptyCircleMarker(GuiGraphics guiGraphics, int x, int y) {
+        int color = 0xFF888888;
+        guiGraphics.fill(x + 1, y, x + 5, y + 1, color);
+        guiGraphics.fill(x, y + 1, x + 1, y + 5, color);
+        guiGraphics.fill(x + 5, y + 1, x + 6, y + 5, color);
+        guiGraphics.fill(x + 1, y + 5, x + 5, y + 6, color);
+    }
+
+    private void drawCheckMarker(GuiGraphics guiGraphics, int x, int y) {
+        int color = 0xFF3FA34D;
+        guiGraphics.fill(x, y + 3, x + 2, y + 5, color);
+        guiGraphics.fill(x + 1, y + 4, x + 3, y + 6, color);
+        guiGraphics.fill(x + 2, y + 3, x + 4, y + 5, color);
+        guiGraphics.fill(x + 3, y + 2, x + 5, y + 4, color);
+        guiGraphics.fill(x + 4, y + 1, x + 6, y + 3, color);
+    }
+
     private static class UiRow {
         public final String categoryName;
-        public final JournalEntry entry;
+        public final String subcategoryName;
+        public final JournalNetworkManager.SyncEntry entry;
         public final boolean isHeader;
+        public final boolean isSubcategoryHeader;
         public final boolean isExpanded;
+        public int height;
 
         public final FormattedCharSequence renderedTextLine;
         public boolean isTitleExtension = false;
 
-        public UiRow(String categoryName, JournalEntry entry, boolean isExpanded, FormattedCharSequence renderedTextLine) {
+        public UiRow(String categoryName, String subcategoryName, JournalNetworkManager.SyncEntry entry,
+                     boolean isExpanded, FormattedCharSequence renderedTextLine, int height) {
             this.categoryName = categoryName;
+            this.subcategoryName = subcategoryName;
             this.entry = entry;
             this.isHeader = (entry == null);
+            this.isSubcategoryHeader = this.isHeader && !subcategoryName.isEmpty();
             this.isExpanded = isExpanded;
             this.renderedTextLine = renderedTextLine;
+            this.height = height;
         }
+
+        public String groupKey() {
+            return subcategoryName.isEmpty() ? categoryName : categoryName + "\u0000" + subcategoryName;
+        }
+    }
+
+    private FormattedCharSequence fitRuneLine(String text, int maxWidth) {
+        Component runeLine = Component.literal(text).withStyle(style -> style.withFont(Minecraft.ALT_FONT));
+        return Component.literal(this.font.substrByWidth(runeLine, maxWidth).getString())
+                .setStyle(runeLine.getStyle()).getVisualOrderText();
     }
 
     private String scrambleToRunes(String text, long baseSeed, long currentTick) {
@@ -481,11 +704,7 @@ public class JournalScreen extends Screen {
 
         long animatedTick = TravellersHandbookConfig.reduceRuneMotion ? 0L : currentTick / 2L;
 
-        // set of runes that are similar width
-        char[] fixedWidthRunes = {
-                'a', 'b', 'c', 'd', 'e', 'g', 'h', 'j', 'k', 'n',
-                'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'x', 'y', 'z'
-        };
+        Random random = new Random(0L);
 
         for (int pos = 0; pos < text.length(); pos++) {
             char c = text.charAt(pos);
@@ -493,17 +712,17 @@ public class JournalScreen extends Screen {
                 scrambled.append(' ');
             } else {
                 long uniqueCharSeed = baseSeed + (pos * 19L) + animatedTick;
-                java.util.Random rand = new java.util.Random(uniqueCharSeed);
+                random.setSeed(uniqueCharSeed);
 
-                char uniformRune = fixedWidthRunes[rand.nextInt(fixedWidthRunes.length)];
-                scrambled.append(uniformRune); // add one of the random runes from the fixed set of runes
+                char rune = RUNES[random.nextInt(RUNES.length)];
+                scrambled.append(rune);
             }
         }
 
         return scrambled.toString();
     }
 
-    private String createObfuscatedBody(JournalEntry entry) {
+    private String createObfuscatedBody(JournalNetworkManager.SyncEntry entry) {
         Random random = new Random(getEntrySeed(entry) ^ 0x5DEECE66DL);
         int targetLength = 190 + random.nextInt(61);
         StringBuilder text = new StringBuilder();
@@ -521,26 +740,84 @@ public class JournalScreen extends Screen {
     }
 
     private String createCipherWord(Random random) {
-        String[] consonants = {"b", "c", "d", "f", "g", "h", "k", "l", "m", "n", "p", "r", "s", "t", "v", "w", "z"};
-        String[] vowels = {"a", "e", "i", "o", "u"};
         // most words are short enough for several to share a rune-font line with occasional longer words being placed in to appear more natural
         int length = random.nextInt(10) == 0 ? 6 + random.nextInt(2) : 2 + random.nextInt(4);
         StringBuilder word = new StringBuilder();
         for (int i = 0; i < length; i++) {
-            String[] letters = i % 2 == 0 ? consonants : vowels;
+            String[] letters = i % 2 == 0 ? CIPHER_CONSONANTS : CIPHER_VOWELS;
             word.append(letters[random.nextInt(letters.length)]);
         }
         return word.toString();
     }
 
-    private String createObfuscatedTitle(JournalEntry entry) {
+    private String createObfuscatedTitle(JournalNetworkManager.SyncEntry entry) {
         Random random = new Random(getEntrySeed(entry));
-        String[] words = {"ancient", "cipher", "forgotten", "hidden", "mystery", "runes", "sealed", "veiled"};
-        return words[random.nextInt(words.length)] + " " + words[random.nextInt(words.length)];
+        return OBFUSCATED_TITLE_WORDS[random.nextInt(OBFUSCATED_TITLE_WORDS.length)] + " "
+                + OBFUSCATED_TITLE_WORDS[random.nextInt(OBFUSCATED_TITLE_WORDS.length)];
     }
 
-    private long getEntrySeed(JournalEntry entry) {
-        return Objects.hash(entry.category(), entry.title(), entry.advancementRequirement());
+    private long getEntrySeed(JournalNetworkManager.SyncEntry entry) {
+        return Objects.hash(entry.id());
+    }
+
+    private String requirementTranslationKey(JournalRequirement requirement) {
+        if (!requirement.displayName().isEmpty()) {
+            return "gui.travellershandbook.requirement.named_progress";
+        }
+        return switch (requirement.type()) {
+            case ADVANCEMENT -> "gui.travellershandbook.requirement.advancement_progress";
+            case ITEM -> "gui.travellershandbook.requirement.item_progress";
+            case STRUCTURE -> "gui.travellershandbook.requirement.structure_progress";
+            case ENTRY -> "gui.travellershandbook.requirement.entry_progress";
+            case MINE -> "gui.travellershandbook.requirement.mine_progress";
+            case CRAFT -> "gui.travellershandbook.requirement.craft_progress";
+        };
+    }
+
+    private Component requirementName(JournalRequirement requirement) {
+        if (!requirement.displayName().isEmpty()) {
+            return Component.literal(requirement.displayName());
+        }
+
+        if (requirement.type() == JournalRequirement.Type.ENTRY) {
+            return TravellersHandbookClient.CLIENT_ENTRIES_CACHE.stream()
+                    .filter(entry -> entry.id().equals(requirement.id()))
+                    .map(JournalNetworkManager.SyncEntry::title)
+                    .findFirst()
+                    .map(Component::literal)
+                    .orElseGet(() -> Component.literal(requirement.id()));
+        }
+
+        if (requirement.type() == JournalRequirement.Type.MINE) {
+            if (requirement.id().startsWith("#")) {
+                return Component.literal(requirement.id());
+            }
+            try {
+                ResourceLocation id = TravellersHandbook.parseId(requirement.id());
+                if (BuiltInRegistries.BLOCK.containsKey(id)) {
+                    Block block = BuiltInRegistries.BLOCK.get(id);
+                    return block.getName();
+                }
+            } catch (Exception ignored) {
+            }
+            return Component.literal(requirement.id());
+        }
+
+        if (requirement.type() != JournalRequirement.Type.ITEM
+                && requirement.type() != JournalRequirement.Type.CRAFT) {
+            return Component.literal(requirement.id());
+        }
+
+        try {
+            ResourceLocation id = TravellersHandbook.parseId(requirement.id());
+            if (!BuiltInRegistries.ITEM.containsKey(id)) {
+                return Component.literal(requirement.id());
+            }
+            Item item = BuiltInRegistries.ITEM.get(id);
+            return item.getDescription();
+        } catch (Exception ignored) {
+            return Component.literal(requirement.id());
+        }
     }
 
     private static class TextExtractor implements net.minecraft.util.FormattedCharSink {

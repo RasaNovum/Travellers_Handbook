@@ -3,7 +3,11 @@
 	"package": "net.rasanovum.travellershandbook.mixin",
 	"compatibilityLevel": "JAVA_17",
 	"mixins": [
-		"PlayerAdvancementMixin"
+		"PlayerAdvancementMixin",
+		"ServerPlayerQuestStatMixin",
+		"ItemEntityQuestMixin",
+		"PlayerItemDropMixin",
+		"DispensedItemMixin"
 	],
 	"client": [
 		"ToastComponentMixin"

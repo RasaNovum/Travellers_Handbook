@@ -6,6 +6,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.minecraft.network.chat.Component;
@@ -17,6 +18,7 @@ import net.rasanovum.travellershandbook.TravellersHandbook;
 import net.rasanovum.travellershandbook.data.DefaultEntriesPackManager;
 import net.rasanovum.travellershandbook.data.JournalDataLoader;
 import net.rasanovum.travellershandbook.networking.JournalNetworkManager;
+import net.rasanovum.travellershandbook.progression.JournalProgressManager;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.function.UnaryOperator;
@@ -33,6 +35,7 @@ public final class NeoForgeMain {
 
         NeoForge.EVENT_BUS.addListener(NeoForgeMain::addReloadListener);
         NeoForge.EVENT_BUS.addListener(NeoForgeMain::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(NeoForgeMain::onServerStopping);
         NeoForge.EVENT_BUS.addListener(NeoForgeMain::onServerTick);
         NeoForge.EVENT_BUS.addListener(NeoForgeMain::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(NeoForgeMain::onPlayerClone);
@@ -68,6 +71,11 @@ public final class NeoForgeMain {
 
     private static void onServerTick(ServerTickEvent.Post event) {
         DefaultEntriesPackManager.tick(event.getServer());
+        JournalProgressManager.tick(event.getServer());
+    }
+
+    private static void onServerStopping(ServerStoppingEvent event) {
+        JournalProgressManager.stop(event.getServer());
     }
 
     private static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
@@ -78,6 +86,7 @@ public final class NeoForgeMain {
 
     private static void onPlayerClone(PlayerEvent.Clone event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            JournalProgressManager.copyPlayerState(event.getOriginal(), player);
             JournalNetworkManager.copyJournalState(event.getOriginal(), player);
             JournalNetworkManager.syncToPlayer(player);
         }
