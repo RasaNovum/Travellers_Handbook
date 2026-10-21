@@ -22,24 +22,20 @@ public class PlayerAdvancementMixin {
     //? if <1.21 {
     /*@Inject(method = "award", at = @At("TAIL"))
     private void onAdvancementAwarded(Advancement advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
-        String advancementId = advancement.getId().toString();
     *///?} else {
     @Inject(method = "award", at = @At("TAIL"))
     private void onAdvancementAwarded(AdvancementHolder advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
-        String advancementId = advancement.id().toString();
     //?}
-        JournalProgressManager.refresh(this.player, advancementId, cir.getReturnValue());
+        JournalProgressManager.refresh(this.player, cir.getReturnValue());
     }
 
     //? if <1.21 {
     /*@Inject(method = "revoke", at = @At("TAIL"))
     private void onAdvancementRevoked(Advancement advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
-        String advancementId = advancement.getId().toString();
     *///?} else {
     @Inject(method = "revoke", at = @At("TAIL"))
     private void onAdvancementRevoked(AdvancementHolder advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
-        String advancementId = advancement.id().toString();
     //?}
-        JournalProgressManager.refresh(this.player, advancementId, cir.getReturnValue());
+        JournalProgressManager.refresh(this.player, cir.getReturnValue());
     }
 }

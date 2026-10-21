@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
@@ -55,6 +56,7 @@ public final class FabricMain implements ModInitializer {
             boolean registered = ResourceManagerHelper.registerBuiltinResourcePack(
                     packId,
                     modContainer,
+                    Component.translatable("pack.travellers-handbook.default_entries"),
                     ResourcePackActivationType.NORMAL
             );
             if (registered) {

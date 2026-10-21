@@ -13,8 +13,10 @@ import net.rasanovum.travellershandbook.client.screen.JournalScreen;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 public final class TravellersHandbookClient {
     private static KeyMapping openJournalKey;
@@ -23,7 +25,6 @@ public final class TravellersHandbookClient {
 
     public static final List<JournalNetworkManager.SyncEntry> CLIENT_ENTRIES_CACHE = new ArrayList<>();
     public static final java.util.Set<String> UNREAD_ENTRIES_SET = new HashSet<>();
-    private static final java.util.Set<String> DISPLAYED_ADVANCEMENTS = new HashSet<>();
 
     private TravellersHandbookClient() {
     }
@@ -55,18 +56,8 @@ public final class TravellersHandbookClient {
             boolean journalOpened
     ) {
         List<JournalNetworkManager.SyncEntry> receivedEntries = new ArrayList<>(entries);
-        java.util.Set<String> displayedAdvancements = new HashSet<>();
-
-        for (JournalNetworkManager.SyncEntry entry : receivedEntries) {
-            String advancement = entry.advancementRequirement();
-            if (entry.advancementHasDisplay() && !advancement.isEmpty()) {
-                displayedAdvancements.add(advancement);
-            }
-        }
 
         client.execute(() -> {
-            DISPLAYED_ADVANCEMENTS.clear();
-            DISPLAYED_ADVANCEMENTS.addAll(displayedAdvancements);
             JournalTutorialOverlay.setJournalOpened(journalOpened);
             applyEntries(receivedEntries);
         });
@@ -74,11 +65,12 @@ public final class TravellersHandbookClient {
 
     public static void applyEntries(List<JournalNetworkManager.SyncEntry> entries) {
         if (!CLIENT_ENTRIES_CACHE.isEmpty()) {
+            Map<String, JournalNetworkManager.SyncEntry> previousEntries = new HashMap<>();
+            for (JournalNetworkManager.SyncEntry entry : CLIENT_ENTRIES_CACHE) {
+                previousEntries.putIfAbsent(entry.id(), entry);
+            }
             for (JournalNetworkManager.SyncEntry newEntry : entries) {
-                JournalNetworkManager.SyncEntry oldEntry = CLIENT_ENTRIES_CACHE.stream()
-                        .filter(cachedEntry -> cachedEntry.id().equals(newEntry.id()))
-                        .findFirst()
-                        .orElse(null);
+                JournalNetworkManager.SyncEntry oldEntry = previousEntries.get(newEntry.id());
                 if (oldEntry == null) {
                     continue;
                 }
@@ -112,7 +104,6 @@ public final class TravellersHandbookClient {
     public static void clearClientState() {
         CLIENT_ENTRIES_CACHE.clear();
         UNREAD_ENTRIES_SET.clear();
-        DISPLAYED_ADVANCEMENTS.clear();
         JournalNotificationManager.clearPendingToasts();
         Minecraft client = Minecraft.getInstance();
         if (client.screen instanceof JournalScreen journalScreen) {
@@ -126,7 +117,7 @@ public final class TravellersHandbookClient {
     }
 
     private static int notificationDelay(JournalNetworkManager.SyncEntry entry) {
-        return entry.advancementHasDisplay() && DISPLAYED_ADVANCEMENTS.contains(entry.advancementRequirement())
+        return entry.advancementHasDisplay() && !entry.advancementRequirement().isEmpty()
                 ? Math.max(0, TravellersHandbookConfig.entryToastDelayTicks)
                 : 0;
     }

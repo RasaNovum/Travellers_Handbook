@@ -76,8 +76,10 @@ public final class JournalNetworkManager {
                 }
             }
 
-            entries.add(new SyncEntry(loadedEntry.getKey().toString(), entry.category(), entry.title(), entry.description(),
-                    requirements, entryProgress.unlocked(), entryProgress.completed(), advancementHasDisplay));
+            String description = entry.descriptionFor(entryProgress.completed());
+            entries.add(new SyncEntry(loadedEntry.getKey().toString(), entry.category(), entry.title(), description,
+                    requirements, entryProgress.unlocked(), entryProgress.completed(), advancementHasDisplay,
+                    entry.subcategory()));
         }
 
         return entries;
@@ -90,6 +92,7 @@ public final class JournalNetworkManager {
         for (SyncEntry entry : entries) {
             buffer.writeUtf(entry.id());
             buffer.writeUtf(entry.category());
+            buffer.writeUtf(entry.subcategory());
             buffer.writeBoolean(entry.unlocked());
             buffer.writeUtf(entry.title());
             buffer.writeUtf(entry.description());
@@ -117,6 +120,7 @@ public final class JournalNetworkManager {
         for (int i = 0; i < size; i++) {
             String id = buffer.readUtf();
             String category = buffer.readUtf();
+            String subcategory = buffer.readUtf();
             boolean unlocked = buffer.readBoolean();
             String title = buffer.readUtf();
             String description = buffer.readUtf();
@@ -129,7 +133,8 @@ public final class JournalNetworkManager {
             }
             boolean completed = buffer.readBoolean();
             boolean advancementHasDisplay = buffer.readBoolean();
-            entries.add(new SyncEntry(id, category, title, description, requirements, unlocked, completed, advancementHasDisplay));
+            entries.add(new SyncEntry(id, category, title, description, requirements, unlocked, completed,
+                    advancementHasDisplay, subcategory));
         }
 
         return new SyncData(entries, journalOpened);
@@ -152,7 +157,7 @@ public final class JournalNetworkManager {
 
     public record SyncEntry(String id, String category, String title, String description,
                             List<RequirementProgress> requirements, boolean unlocked, boolean completed,
-                            boolean advancementHasDisplay) {
+                            boolean advancementHasDisplay, String subcategory) {
         public SyncEntry {
             requirements = List.copyOf(requirements);
         }
@@ -163,6 +168,11 @@ public final class JournalNetworkManager {
 
         public boolean hasGoals() {
             return requirements.stream().anyMatch(progress -> progress.requirement().isGoal());
+        }
+
+        public boolean hasOnlyLocks() {
+            return !requirements.isEmpty() && requirements.stream()
+                    .allMatch(progress -> progress.requirement().isLock());
         }
 
         public String advancementRequirement() {

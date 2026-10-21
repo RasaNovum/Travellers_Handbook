@@ -9,14 +9,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerPlayer.class)
-public class ServerPlayerStatMixin {
+public class ServerPlayerQuestStatMixin {
     @Inject(method = "awardStat(Lnet/minecraft/stats/Stat;I)V", at = @At("HEAD"))
     private void travellersHandbook$beforeAwardStat(Stat<?> stat, int amount, CallbackInfo callbackInfo) {
-        JournalProgressManager.onItemStatAwarded((ServerPlayer) (Object) this, stat);
+        JournalProgressManager.onStatAwarded((ServerPlayer) (Object) this, stat);
     }
 
     @Inject(method = "awardStat(Lnet/minecraft/stats/Stat;I)V", at = @At("TAIL"))
     private void travellersHandbook$afterAwardStat(Stat<?> stat, int amount, CallbackInfo callbackInfo) {
-        JournalProgressManager.onItemStatAwarded((ServerPlayer) (Object) this, stat);
+        JournalProgressManager.onStatAwarded((ServerPlayer) (Object) this, stat);
     }
 }

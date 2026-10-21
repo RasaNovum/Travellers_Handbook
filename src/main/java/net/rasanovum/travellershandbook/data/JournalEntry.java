@@ -9,33 +9,55 @@ import net.minecraft.util.GsonHelper;
 import java.util.ArrayList;
 import java.util.List;
 
-public record JournalEntry(String category, String title, String description, List<JournalRequirement> requirements) {
+public record JournalEntry(String category, String subcategory, String title, String description,
+                           String incompleteDescription, List<JournalRequirement> requirements) {
     public JournalEntry {
         requirements = List.copyOf(requirements);
     }
 
     public static JournalEntry fromJson(JsonObject json) {
         String category = GsonHelper.getAsString(json, "category", "General");
+        String subcategory = parseSubcategory(json);
         String title = GsonHelper.getAsString(json, "title", "Unknown Entry");
         String description = GsonHelper.getAsString(json, "description", "");
-        JournalRequirement.Mode defaultMode = parseMode(json, "type", JournalRequirement.Mode.LOCK);
+        String incompleteDescription = GsonHelper.getAsString(json, "incompleteDescription", description);
+        JournalRequirement.Mode defaultMode = parseMode(json, JournalRequirement.Mode.LOCK);
         List<JournalRequirement> requirements = new ArrayList<>();
 
         parseField(json, "advancement", JournalRequirement.Type.ADVANCEMENT, defaultMode, requirements);
         parseField(json, "item", JournalRequirement.Type.ITEM, defaultMode, requirements);
         parseField(json, "structure", JournalRequirement.Type.STRUCTURE, defaultMode, requirements);
         parseField(json, "entry", JournalRequirement.Type.ENTRY, defaultMode, requirements);
+        parseAliasedField(json, "mine", "Mine", JournalRequirement.Type.MINE, defaultMode, requirements);
+        parseAliasedField(json, "craft", "Craft", JournalRequirement.Type.CRAFT, defaultMode, requirements);
         parseRequirementArray(json, defaultMode, requirements);
 
-        return new JournalEntry(category, title, description, requirements);
+        return new JournalEntry(category, subcategory, title, description, incompleteDescription, requirements);
     }
 
-    public String advancementRequirement() {
-        return requirements.stream()
-                .filter(requirement -> requirement.type() == JournalRequirement.Type.ADVANCEMENT)
-                .map(JournalRequirement::id)
-                .findFirst()
-                .orElse("");
+    public String descriptionFor(boolean completed) {
+        return completed ? description : incompleteDescription;
+    }
+
+    private static String parseSubcategory(JsonObject json) {
+        if (!json.has("subcategory")) {
+            return "";
+        }
+        JsonElement element = json.get("subcategory");
+        if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
+            throw new IllegalArgumentException("Journal entry subcategory must be a string");
+        }
+        String subcategory = element.getAsString();
+        return subcategory.isBlank() ? "" : subcategory;
+    }
+
+    private static void parseAliasedField(JsonObject json, String fieldName, String alias,
+                                          JournalRequirement.Type type, JournalRequirement.Mode defaultMode,
+                                          List<JournalRequirement> requirements) {
+        parseField(json, fieldName, type, defaultMode, requirements);
+        if (!json.has(fieldName)) {
+            parseField(json, alias, type, defaultMode, requirements);
+        }
     }
 
     private static void parseField(JsonObject json, String fieldName, JournalRequirement.Type type,
@@ -59,7 +81,7 @@ public record JournalEntry(String category, String title, String description, Li
 
         JsonObject object = element.getAsJsonObject();
         String id = getRequiredString(object, "id", fieldName);
-        JournalRequirement.Mode mode = parseMode(object, "type", defaultMode);
+        JournalRequirement.Mode mode = parseMode(object, defaultMode);
         long amount = parseAmount(object, type, fieldName);
         String displayName = parseDisplayName(object, fieldName);
         requirements.add(new JournalRequirement(type, id, amount, mode, displayName));
@@ -80,36 +102,37 @@ public record JournalEntry(String category, String title, String description, Li
                 throw new IllegalArgumentException("Requirement array entries must be objects");
             }
             JsonObject object = requirementElement.getAsJsonObject();
-            JournalRequirement.Type type = parseRequirementType(object);
+            JournalRequirement.Type type = parseRequirementClass(object);
             String id = getRequiredString(object, "id", "requirements");
-            JournalRequirement.Mode mode = parseMode(object, "mode", defaultMode);
+            JournalRequirement.Mode mode = parseMode(object, defaultMode);
             long amount = parseAmount(object, type, "requirements");
             String displayName = parseDisplayName(object, "requirements");
             requirements.add(new JournalRequirement(type, id, amount, mode, displayName));
         }
     }
 
-    private static JournalRequirement.Type parseRequirementType(JsonObject object) {
-        String type = getRequiredString(object, "type", "requirements");
-        return switch (type) {
+    private static JournalRequirement.Type parseRequirementClass(JsonObject object) {
+        String requirementClass = getRequiredString(object, "class", "requirements");
+        return switch (requirementClass) {
             case "advancement" -> JournalRequirement.Type.ADVANCEMENT;
             case "item" -> JournalRequirement.Type.ITEM;
             case "structure" -> JournalRequirement.Type.STRUCTURE;
             case "entry" -> JournalRequirement.Type.ENTRY;
-            default -> throw new IllegalArgumentException("Unknown requirement type: " + type);
+            case "mine" -> JournalRequirement.Type.MINE;
+            case "craft" -> JournalRequirement.Type.CRAFT;
+            default -> throw new IllegalArgumentException("Unknown requirement class: " + requirementClass);
         };
     }
 
-    private static JournalRequirement.Mode parseMode(JsonObject object, String fieldName,
-                                                     JournalRequirement.Mode defaultMode) {
-        if (!object.has(fieldName)) {
+    private static JournalRequirement.Mode parseMode(JsonObject object, JournalRequirement.Mode defaultMode) {
+        if (!object.has("type")) {
             return defaultMode;
         }
-        String mode = getRequiredString(object, fieldName, fieldName);
+        String mode = getRequiredString(object, "type", "type");
         return switch (mode) {
             case "lock" -> JournalRequirement.Mode.LOCK;
             case "goal" -> JournalRequirement.Mode.GOAL;
-            default -> throw new IllegalArgumentException("Unknown requirement mode: " + mode);
+            default -> throw new IllegalArgumentException("Unknown requirement type: " + mode);
         };
     }
 
@@ -117,8 +140,8 @@ public record JournalEntry(String category, String title, String description, Li
         if (!object.has("amount")) {
             return 1;
         }
-        if (type != JournalRequirement.Type.ITEM) {
-            throw new IllegalArgumentException("Amount is only supported for item requirements: " + fieldName);
+        if (!JournalRequirement.supportsAmount(type)) {
+            throw new IllegalArgumentException("Amount is only supported for item, mine, and craft requirements: " + fieldName);
         }
         JsonElement amountElement = object.get("amount");
         if (!amountElement.isJsonPrimitive() || !amountElement.getAsJsonPrimitive().isNumber()) {

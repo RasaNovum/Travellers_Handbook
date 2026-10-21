@@ -5,10 +5,6 @@ import net.rasanovum.travellershandbook.TravellersHandbook;
 import java.util.Objects;
 
 public record JournalRequirement(Type type, String id, long amount, Mode mode, String displayName) {
-    public JournalRequirement(Type type, String id, long amount, Mode mode) {
-        this(type, id, amount, mode, "");
-    }
-
     public JournalRequirement {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(id, "id");
@@ -18,8 +14,8 @@ public record JournalRequirement(Type type, String id, long amount, Mode mode, S
             throw new IllegalArgumentException("Requirement id cannot be empty");
         }
         if (id.startsWith("#")) {
-            if (type != Type.STRUCTURE || id.length() == 1) {
-                throw new IllegalArgumentException("Only structure requirements support tags");
+            if ((type != Type.STRUCTURE && type != Type.MINE) || id.length() == 1) {
+                throw new IllegalArgumentException("Only structure and mine requirements support tags");
             }
             id = "#" + TravellersHandbook.parseId(id.substring(1)).toString();
         } else {
@@ -28,8 +24,8 @@ public record JournalRequirement(Type type, String id, long amount, Mode mode, S
         if (amount <= 0 || amount > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Requirement amount must be between 1 and " + Integer.MAX_VALUE);
         }
-        if (type != Type.ITEM && amount != 1) {
-            throw new IllegalArgumentException("Amount is only supported for item requirements");
+        if (!supportsAmount(type) && amount != 1) {
+            throw new IllegalArgumentException("Amount is only supported for item, mine, and craft requirements");
         }
     }
 
@@ -41,11 +37,21 @@ public record JournalRequirement(Type type, String id, long amount, Mode mode, S
         return mode == Mode.LOCK;
     }
 
+    public boolean isQuantitative() {
+        return supportsAmount(type);
+    }
+
+    public static boolean supportsAmount(Type type) {
+        return type == Type.ITEM || type == Type.MINE || type == Type.CRAFT;
+    }
+
     public enum Type {
         ADVANCEMENT,
         ITEM,
         STRUCTURE,
-        ENTRY
+        ENTRY,
+        MINE,
+        CRAFT
     }
 
     public enum Mode {

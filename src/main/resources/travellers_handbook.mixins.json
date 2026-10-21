@@ -4,7 +4,10 @@
 	"compatibilityLevel": "JAVA_17",
 	"mixins": [
 		"PlayerAdvancementMixin",
-		"ServerPlayerStatMixin"
+		"ServerPlayerQuestStatMixin",
+		"ItemEntityQuestMixin",
+		"PlayerItemDropMixin",
+		"DispensedItemMixin"
 	],
 	"client": [
 		"ToastComponentMixin"
